@@ -6,7 +6,7 @@ Software Design Project is a course held at University of Zagreb, Faculty of Ele
 
 Students are required to get through the following tutorials: [C++](http://www.cplusplus.com/doc/tutorial/), [GitHub](http://rogerdudler.github.io/git-guide/), [CMake](https://cmake.org/cmake/help/latest/guide/tutorial/index.html), [Googletest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) and [TravisCI](https://docs.travis-ci.com/user/getting-started/). While writing C++ code, we advise to follow the [Google C++ style guide](https://google.github.io/styleguide/cppguide.html).
 
-Students will be assigned to one of five teams which are **blond**, **blue**, **brown**, **orange**, **pink** and **white**. Each team will have a separate branch and only team members will have write permission. Although, additional branches can be created if needed, but should have names starting with the team name (e.g. `blue_feature_one`).
+Students will be assigned to one of five teams which are **blonde**, **blue**, **brown**, **orange**, **pink** and **white**. Each team will have a separate branch and only team members will have write permission. Although, additional branches can be created if needed, but should have names starting with the team name (e.g. `blonde_feature_one`).
 
 ## Objective
 
