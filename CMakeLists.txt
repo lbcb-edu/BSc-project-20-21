@@ -5,3 +5,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(${PROJECT_NAME} src/blue_mapper.cpp)
+
+
+if (NOT TARGET bioparser)
+  add_subdirectory(bioparser EXCLUDE_FROM_ALL)
+endif ()
+target_link_libraries(blue_mapper bioparser)
