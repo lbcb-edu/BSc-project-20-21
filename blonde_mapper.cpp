@@ -1,7 +1,22 @@
 #include <iostream>
 #include <string>
 #include <getopt.h>
-#define VERSION "v0.1.0"
+#include <vector>
+
+#include "bioparser/fasta_parser.hpp"
+
+class Sequence {
+public:
+    Sequence(
+        const char* name, std::uint32_t name_len,
+        const char* data, std::uint32_t data_len) : name_(name, name_len), data_(data, data_len) {
+    }
+
+public:
+    std::string name_, data_;
+};
+
+#define VERSION "v0.1.1"
 
 /* Modificiran primjer https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html */
 /* Pojasnjenje primjera https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Options.html */
@@ -65,19 +80,42 @@ int main (int argc, char **argv)
 
   if (help_flag) {
       std::cout << HELP_MESSAGE;
-  }
-
-  if(version_flag) {
+  } else if (version_flag) {
       std::cout << VERSION << std::endl;
-  }
+  } if (optind < argc) {
+    auto genome_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind]);
+    auto genomes = genome_parser->Parse(-1);
 
-  /* Print any remaining command line arguments (not options). ()*/
-  if (optind < argc)
-    {
-      std::cout << "non-option ARGV-elements: \n";
-      while (optind < argc)
-        std::cout << argv[optind++] << std::endl;
+    auto fragment_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind + 1]);
+    auto fragments = fragment_parser->Parse(-1);
+
+    uint64_t length_sum = 0;
+    std::vector<size_t> lengths(fragments.size());
+    for (int i = 0; i < int(fragments.size()); i++) {
+      lengths[i] = fragments[i]->data_.size();
+      length_sum += lengths[i];
     }
+    sort(lengths.begin(), lengths.end(), std::greater<size_t>());
+      
+    uint64_t N50 = -1, tmp_sum = 0;
+    for (int i = 0; i < int(fragments.size()); i++) {
+      tmp_sum += lengths[i];
+      if (tmp_sum * 2 >= length_sum) {
+        N50 = lengths[i];
+        break;
+      }
+    }
+
+    std::cerr << "Reference genome sequences:\n";
+    for (int i = 0; i < int(genomes.size()); i++) {
+      std::cerr << "\t" << genomes[i]->name_ << " , length = " << genomes[i]->data_.size() << '\n';
+    }
+    std::cerr << "Number of fragments: " << fragments.size() << '\n';
+    std::cerr << "Average length: " << length_sum * 1.0 / fragments.size() << '\n';
+    std::cerr << "N50 length: " << N50 << '\n';
+    std::cerr << "Minimal length: " << lengths.back() << '\n';
+    std::cerr << "Maximal length: " << lengths.front() << '\n';
+  }
 
   return 0;
 }
