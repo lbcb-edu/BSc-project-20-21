@@ -4,6 +4,9 @@
 #include <vector>
 
 #include "bioparser/fasta_parser.hpp"
+#include "bioparser/fastq_parser.hpp"
+
+#define VERSION "v0.1.1"
 
 class Sequence {
 public: 
@@ -16,7 +19,48 @@ public:
     std::string name_, data_;
 };
 
-#define VERSION "v0.1.1"
+class SequenceFastq : public Sequence {
+public:
+    SequenceFastq(
+        const char* name,    std::uint32_t name_len,
+        const char* data,    std::uint32_t data_len,
+        const char* quality, std::uint32_t quality_len) : Sequence(name, name_len, data, data_len), quality_(quality, quality_len) {
+    } 
+
+public: 
+    std::string quality_;
+};
+
+void printReferenceGenomesInfo(const std::vector<std::unique_ptr<Sequence>>& genomes) {
+    std::cerr << "Reference genome sequences:\n";
+    for (int i = 0; i < int(genomes.size()); i++) {
+        std::cerr << "\t" << genomes[i]->name_ << " , length = " << genomes[i]->data_.size() << '\n';
+    }
+}
+
+void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments) {
+    uint64_t length_sum = 0;
+    std::vector<size_t> lengths(fragments.size());
+    for (int i = 0; i < int(fragments.size()); i++) {
+        lengths[i] = fragments[i]->data_.size();
+        length_sum += lengths[i];
+    }
+    sort(lengths.begin(), lengths.end(), std::greater<size_t>());
+    
+    uint64_t N50 = -1, tmp_sum = 0;
+    for (int i = 0; i < int(fragments.size()); i++) {
+        tmp_sum += lengths[i];
+        if (tmp_sum * 2 >= length_sum) {
+            N50 = lengths[i];
+            break;
+        }
+    }
+    std::cerr << "Number of fragments: " << fragments.size() << '\n';
+    std::cerr << "Average length: " << length_sum * 1.0 / fragments.size() << '\n';
+    std::cerr << "N50 length: " << N50 << '\n';
+    std::cerr << "Minimal length: " << lengths.back() << '\n';
+    std::cerr << "Maximal length: " << lengths.front() << '\n';
+}
 
 /* Modificiran primjer https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html */
 /* Pojasnjenje primjera https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Options.html */
@@ -82,36 +126,29 @@ int main (int argc, char **argv) {
     } if (optind < argc) {
         auto genome_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind]);
         auto genomes = genome_parser->Parse(-1);
+        printReferenceGenomesInfo(genomes);
 
-        auto fragment_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind + 1]);
-        auto fragments = fragment_parser->Parse(-1);
 
-        uint64_t length_sum = 0;
-        std::vector<size_t> lengths(fragments.size());
-        for (int i = 0; i < int(fragments.size()); i++) {
-            lengths[i] = fragments[i]->data_.size();
-            length_sum += lengths[i];
-        }
-        sort(lengths.begin(), lengths.end(), std::greater<size_t>());
-        
-        uint64_t N50 = -1, tmp_sum = 0;
-        for (int i = 0; i < int(fragments.size()); i++) {
-            tmp_sum += lengths[i];
-            if (tmp_sum * 2 >= length_sum) {
-                N50 = lengths[i];
-                break;
+        try {
+            auto fragment_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind + 1]);
+            auto fragments = fragment_parser->Parse(-1);
+            std::cout << "FASTA fragments:\n";
+            printFragmentsInfo(fragments);
+        } catch (std::invalid_argument e) {
+            auto fragment_parser = bioparser::Parser<SequenceFastq>::Create<bioparser::FastqParser>(argv[optind + 1]);
+            
+            // parse in chunks
+            std::vector<std::unique_ptr<Sequence>> fragments;
+            std::uint32_t chunk_size = 500 * 1024 * 1024;  // 500 MB
+            for (auto t = fragment_parser->Parse(chunk_size); !t.empty(); t = fragment_parser->Parse(chunk_size)) {
+                fragments.insert(
+                    fragments.end(),
+                    std::make_move_iterator(t.begin()),
+                    std::make_move_iterator(t.end()));
             }
+            std::cout << "FASTQ fragments:\n";
+            printFragmentsInfo(fragments);
         }
-
-        std::cerr << "Reference genome sequences:\n";
-        for (int i = 0; i < int(genomes.size()); i++) {
-            std::cerr << "\t" << genomes[i]->name_ << " , length = " << genomes[i]->data_.size() << '\n';
-        }
-        std::cerr << "Number of fragments: " << fragments.size() << '\n';
-        std::cerr << "Average length: " << length_sum * 1.0 / fragments.size() << '\n';
-        std::cerr << "N50 length: " << N50 << '\n';
-        std::cerr << "Minimal length: " << lengths.back() << '\n';
-        std::cerr << "Maximal length: " << lengths.front() << '\n';
     }
 
     return 0;
