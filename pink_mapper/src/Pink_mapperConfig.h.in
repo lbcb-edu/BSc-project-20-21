@@ -1,0 +1,4 @@
+// the configured options and settings for Tutorial
+#define pink_mapper_VERSION_MAJOR @pink_mapper_VERSION_MAJOR@
+#define pink_mapper_VERSION_MINOR @pink_mapper_VERSION_MINOR@
+#define pink_mapper_VERSION_PATCH @pink_mapper_VERSION_PATCH@

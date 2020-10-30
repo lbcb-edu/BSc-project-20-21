@@ -1,0 +1,1 @@
+/usr/bin/c++     CMakeFiles/pink_mapper.dir/pink_mapper.cpp.o  -o pink_mapper  /usr/lib/x86_64-linux-gnu/libz.so 
