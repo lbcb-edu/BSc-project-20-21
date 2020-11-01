@@ -13,12 +13,12 @@ void version_print(){
 
 //Checks if passed arguments are in fasta and fastq formats
 bool checkArgs() {
-	std::string extension_fasta[5] = [".fasta", ".fna", ".ffn", ".faa", ".frn"];
+	const char* extension_fasta[5] = { ".fasta", ".fna", ".ffn", ".faa", ".frn" };
 	char* p = strrchr(argv[0], '.');
 	int found = 0;
 	if (p) {
 		for (int i = 0; i < 5; i++) {
-			if (strcmp(p, extension[i]) {
+			if (strcmp(p, extension_fasta[i])) {
 				found++;
 					break;
 			}
@@ -29,11 +29,11 @@ bool checkArgs() {
 		return false;
 	}
 
-	std::string extension_fastq[7] = [".fasta", ".fna", ".ffn", ".faa", ".frn", ".fastq", ".fq"];
+	const char* extension_fastq[7] = {".fasta", ".fna", ".ffn", ".faa", ".frn", ".fastq", ".fq"};
 	p = strrchr(argv[1], '.');
 	if (p) {
 		for (int i = 0; i < 7; i++) {
-			if (strcmp(p, extension[i]) {
+			if (strcmp(p, extension_fastq[i])) {
 				return true;
 			}
 		}
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]){
 	}
 
 	if (!checkArgs()) {
-		std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order"
+		std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order";
 			return 1;
 	}
 
@@ -115,9 +115,11 @@ int main(int argc, char *argv[]){
 			// implementation
 		}
 	}
-	auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(path);
+
+
+	auto seq = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[0]);
 
 	// parse whole file
-	auto s = p->Parse(-1);
+	auto s = seq->Parse(-1);
 	return 0;
 }
