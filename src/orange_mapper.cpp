@@ -1,11 +1,16 @@
 #include <iostream>
 #include <getopt.h>
+#include <vector>
 
+#include "fasta_parser.hpp"
+#include "fastq_parser.hpp"
+#include "sequence.hpp"
+using namespace std;
+using namespace biosoup;
 #define VERSION "v0.1.0"
 
 static int help_flag;
 static int version_flag;
-
 void printHelp(){
     std::cout << "\norange_mapper usage:\n"
     "./orange_mapper [OPTION]\n"
@@ -64,5 +69,47 @@ int main(int argc, char *argv[]){
         printVersion();
     }
 
+    if(optind < argc){
+        auto genome = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[1]);
+        auto genome_parsed = genome->Parse(-1);
+
+        auto fragments = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[2]);
+        auto fragments_parsed = fragments->Parse(-1);
+
+        //print names of genome from reference file and their lengths
+        cerr<<"Sequnces in the reference genome file: \n";
+        for(int i = 0; i < genome_parsed.size(); i++){
+            cerr<< genome_parsed[i]-> name << " , length= "<<genome_parsed[i]->data.length()<<"\n";
+        }
+
+        //number of sequences in the fragments file, average length
+        cerr<<"Number of sequences in fragments: "<<fragments_parsed.size()<<"\n";
+        uint64_t sumFragmentsLen = 0;
+        for(int i = 0; i < fragments_parsed.size();i++){
+            sumFragmentsLen += fragments_parsed[i]->data.length();
+        }
+        uint64_t avgLen = sumFragmentsLen/fragments_parsed.size();
+        cerr<<"Average length: "<< avgLen<<"\n";
+        //N50 length
+        vector<size_t> len(fragments_parsed.size());
+        for(int i = 0 ; i < fragments_parsed.size(); i++){
+            len[i] = fragments_parsed[i]->data.length();
+        }
+        //sorting in descending order(biggest to smallest)
+        sort(len.begin(), len.end(), greater<size_t>());
+        uint64_t n50Len = 0;
+        int i = 0;
+        do{
+            n50Len += len[i];
+            i++;
+        }while(n50Len < (sumFragmentsLen/2));
+        cerr<<"N50 length = "<<n50Len<<"\n";
+
+        //minimal length - last element
+        cerr<<"Minimal length = "<<len.back()<<"\n";
+
+        //maximal length - first element
+        cerr<<"Maximal length = "<<len.front()<<"\n";
+    }
     return 0;
 }
