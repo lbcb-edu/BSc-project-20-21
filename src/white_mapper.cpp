@@ -4,8 +4,8 @@
 
 #define VERSION "v1.0"
 
-static bool version_req;
-static bool help_req;
+static int version_req;
+static int help_req;
 
 void version_print(){
     std::cout << VERSION << std::endl;
