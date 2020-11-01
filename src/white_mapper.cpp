@@ -1,18 +1,16 @@
 #include <iostream>
-
 #include <getopt.h>
-
-#define VERSION "v1.0"
+#include "projectControl.h"
 
 static int version_req;
 static int help_req;
 
 void version_print(){
-    std::cout << VERSION << std::endl;
+    std::cout << PROJECT_VER << std::endl;
 }
 
 void help_print(){
-    std::cout << "\nwhite_mapper usage:\n"
+    std::cout << "\n" PROJECT_NAME " usage:\n"
     "Two options :\n"
     "-h or --help\t Prints help message\n"
     "-v or --version\t Prints version\n\n"
