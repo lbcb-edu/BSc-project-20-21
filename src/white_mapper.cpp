@@ -3,16 +3,15 @@
 #include "projectControl.h"
 #include "../bioparser/include/bioparser/fasta_parser.hpp"
 #include "../bioparser/include/bioparser/fastq_parser.hpp"
-
 static int version_req;
 static int help_req;
 
-void version_print(){
+void version_print(char *argv[]){
     std::cout << PROJECT_VER << std::endl;
 }
 
 //Checks if passed arguments are in fasta and fastq formats
-bool checkArgs() {
+bool checkArgs(char *argv[]) {
 	const char* extension_fasta[5] = { ".fasta", ".fna", ".ffn", ".faa", ".frn" };
 	char* p = strrchr(argv[0], '.');
 	int found = 0;
@@ -92,18 +91,18 @@ int main(int argc, char *argv[]){
     }
 
     if (version_req){
-        version_print();
+        version_print(argv);
     } else if(help_req){
         help_print();
     }
 
 	if (argc != 2) {
-		std::cerr << "error: invalid input, please include exactly two files";
+		std::cerr << "error: invalid input, please include exactly two files\n";
 		return 1;
 	}
 
-	if (!checkArgs()) {
-		std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order";
+	if (!checkArgs(argv)) {
+		std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order\n";
 			return 1;
 	}
 
@@ -114,7 +113,7 @@ int main(int argc, char *argv[]){
 			const char*, std::uint32_t) {
 			// implementation
 		}
-	}
+	};
 
 
 	auto seq = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[0]);
