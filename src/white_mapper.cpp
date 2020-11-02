@@ -92,8 +92,10 @@ int main(int argc, char *argv[]){
 
     if (version_req){
         version_print(argv);
+		return 0;
     } else if(help_req){
         help_print();
+		return 0;
     }
 
 	if (argc != 2) {
