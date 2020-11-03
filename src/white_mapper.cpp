@@ -3,6 +3,7 @@
 #include "projectControl.h"
 #include "../bioparser/include/bioparser/fasta_parser.hpp"
 #include "../bioparser/include/bioparser/fastq_parser.hpp"
+
 static int version_req;
 static int help_req;
 
@@ -38,6 +39,18 @@ bool checkArgs(char *argv[]) {
 		}
 	}
 	return false;
+}
+
+//calculates the index of N50-th member
+int calculateN50(std::vector<size_t> fragmentVector, int sum) {
+	int temp_sum = 0;
+	for (int i = fragmentVector.size(); i > 0; i--) {
+		temp_sum += fragmentVector[i];
+		if (temp_sum > sum/2) {
+			return i;
+		}
+	}
+	return -1;
 }
 	
 
@@ -166,6 +179,19 @@ int main(int argc, char *argv[]){
 	float avg_size = sum / f_size;
 	std::cerr << "Average length of fragments: " << avg_size << "\n\n";
 
+	std::vector<size_t> fragmentVector;
+
+	for (int i = 0; i < f_size; i++) {
+		fragmentVector.push_back(f[i]->getDataLength());
+	}
+
+	std::sort(fragmentVector.begin(), fragmentVector.end()); //sorting a vector
+
+	int N50 = calculateN50(fragmentVector, sum);
+	std::cerr << "N50 length: " << fragmentVector[N50] << "\n\n";
+
+	std::cerr << "Minimum: " << fragmentVector.front() << "\n\n";
+	std::cerr << "Maximum: " << fragmentVector.back() << "\n\n";
 
 	return 0;
 }
