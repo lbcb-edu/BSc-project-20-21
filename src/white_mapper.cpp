@@ -7,7 +7,8 @@
 static int version_req;
 static int help_req;
 
-void version_print(char *argv[]){
+//gets the project version from projectControl.h
+void version_print(){
     std::cout << PROJECT_VER << std::endl;
 }
 
@@ -19,13 +20,13 @@ bool checkArgs(char *argv[]) {
 	if (p) {
 		for (int i = 0; i < 5; i++) {
 			if (strcmp(p, extension_fasta[i])) {
-				found++;
-					break;
+				found++; //if the first file checks out
+				break; //break this loop and check the second file
 			}
 		}
 	}
 
-	if (found != 1) {
+	if (found != 1) { //in case the for loop has come to an end and the file doesn't pass the check
 		return false;
 	}
 
@@ -34,11 +35,11 @@ bool checkArgs(char *argv[]) {
 	if (p) {
 		for (int i = 0; i < 7; i++) {
 			if (strcmp(p, extension_fastq[i])) {
-				return true;
+				return true; //if the second file checks out, then both files are good and the function returns true
 			}
 		}
 	}
-	return false;
+	return false; //if the second file doesn't check out, the function returns false
 }
 
 //calculates the index of N50-th member
@@ -50,10 +51,10 @@ int calculateN50(std::vector<size_t> fragmentVector, int sum) {
 			return i;
 		}
 	}
-	return -1;
+	return -1; //the program should never get to this, but it was necessary to implement because of compilation issues
 }
 	
-
+//prints the standard help message
 void help_print(){
     std::cout << "\n" PROJECT_NAME " usage:\n"
     "Two options :\n"
@@ -103,27 +104,31 @@ int main(int argc, char *argv[]){
         }
     }
 
+	//prints help or version and ends the program, depending on which option flag was input as an argument
     if (version_req){
-        version_print(argv);
+        version_print();
 		return 0;
     } else if(help_req){
         help_print();
 		return 0;
     }
 
+	//if the input wasn't help or version flag, then it checks if we have given two arguments
 	if (argc != 3) {
 		std::cerr << "error: invalid input, please include exactly two files\n";
 		return 1;
 	}
 
+	//if the given two arguments aren't in valid formats, the program recieves an error
 	if (!checkArgs(argv)) {
 		std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order\n";
-			return 1;
+		return 1;
 	}
 
-	struct Sequence {  // or any other name
+	//basic definition of a Sequence structure
+	struct Sequence { 
 	public:
-		Sequence(  // required arguments
+		Sequence(
 			const char* name, std::uint32_t nameLength,
 			const char* data, std::uint32_t dataLength) {
 			this->name = name;
@@ -155,20 +160,22 @@ int main(int argc, char *argv[]){
 		std::uint32_t dataLength;
 	};
 
-
+	//parsing the first file
 	auto genome = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[1]);
 	auto g = genome->Parse(-1);
 	int g_size = (int)g.size();
 
+	//parsing the second file
 	auto fragments = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[2]);
 	auto f = fragments->Parse(-1);
 	int f_size = (int)f.size();
 
 	int sum = 0;
+
 	//names of sequences in the reference file and their lengths
-	for (int i = 0; i < g_size; i++) {
+	/* for (int i = 0; i < g_size; i++) {
 		std::cerr << "Name of sequence: " << g[i]->getName() << "\n" << "Length of sequence: " << g[i]->getDataLength() << "\n\n";
-	}
+	} */
 
 	//number of sequences in the fragments file
 	for (int i = 0; i < f_size; i++) {
@@ -179,17 +186,20 @@ int main(int argc, char *argv[]){
 	float avg_size = sum / f_size;
 	std::cerr << "Average length of fragments: " << avg_size << "\n\n";
 
-	std::vector<size_t> fragmentVector;
 
+	//filling a vector with necessary data
+	std::vector<size_t> fragmentVector;
 	for (int i = 0; i < f_size; i++) {
 		fragmentVector.push_back(f[i]->getDataLength());
 	}
 
 	std::sort(fragmentVector.begin(), fragmentVector.end()); //sorting a vector
 
+	//calculates at which place is N50 located, and outputs it
 	int N50 = calculateN50(fragmentVector, sum);
 	std::cerr << "N50 length: " << fragmentVector[N50] << "\n\n";
 
+	//prints the minimum and the maximum value from the fragment vector
 	std::cerr << "Minimum: " << fragmentVector.front() << "\n\n";
 	std::cerr << "Maximum: " << fragmentVector.back() << "\n\n";
 
