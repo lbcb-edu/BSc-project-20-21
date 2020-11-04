@@ -2,11 +2,10 @@
 #include <getopt.h>
 #include <vector>
 
-#include "fasta_parser.hpp"
-#include "fastq_parser.hpp"
-#include "sequence.hpp"
+#include "bioparser/bioparser/include/bioparser/fasta_parser.hpp"
+#include "bioparser/bioparser/include/bioparser/fastq_parser.hpp"
+#include "bioparser/bioparser/include/bioparser/parser.hpp"
 using namespace std;
-using namespace biosoup;
 #define VERSION "v0.1.0"
 
 static int help_flag;
@@ -30,6 +29,18 @@ void printHelp(){
 void printVersion(){
     std::cout << VERSION << std::endl;
 }
+
+class Sequence {
+public:
+    Sequence(  // required arguments
+        const char* name, std::uint32_t name_len,
+        const char* data, std::uint32_t data_len):
+        names(name, name_len), 
+        datas(data, data_len)
+    {
+    }
+    string names, datas;
+};
 
 int main(int argc, char *argv[]){
     int i;
@@ -79,21 +90,21 @@ int main(int argc, char *argv[]){
         //print names of genome from reference file and their lengths
         cerr<<"Sequnces in the reference genome file: \n";
         for(int i = 0; i < genome_parsed.size(); i++){
-            cerr<< genome_parsed[i]-> name << " , length= "<<genome_parsed[i]->data.length()<<"\n";
+            cerr<< genome_parsed[i]-> names << " , length= "<<genome_parsed[i]->datas.length()<<"\n";
         }
 
         //number of sequences in the fragments file, average length
         cerr<<"Number of sequences in fragments: "<<fragments_parsed.size()<<"\n";
         uint64_t sumFragmentsLen = 0;
         for(int i = 0; i < fragments_parsed.size();i++){
-            sumFragmentsLen += fragments_parsed[i]->data.length();
+            sumFragmentsLen += fragments_parsed[i]->datas.length();
         }
         uint64_t avgLen = sumFragmentsLen/fragments_parsed.size();
         cerr<<"Average length: "<< avgLen<<"\n";
         //N50 length
         vector<size_t> len(fragments_parsed.size());
         for(int i = 0 ; i < fragments_parsed.size(); i++){
-            len[i] = fragments_parsed[i]->data.length();
+            len[i] = fragments_parsed[i]->datas.length();
         }
         //sorting in descending order(biggest to smallest)
         sort(len.begin(), len.end(), greater<size_t>());

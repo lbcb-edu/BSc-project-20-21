@@ -1,8 +1,20 @@
-cmake_minimum_required(VERSION "3.19.0")
+cmake_minimum_required(VERSION "3.15.0")
 
-project(orange_mapper VERSION 0.1.0)
+project(orange_mapper VERSION 1.0)
+
+configure_file(
+    "src/config.h.in"
+    "src/config.h"
+)
 
 add_executable(${PROJECT_NAME} src/orange_mapper.cpp)
+
+find_package(ZLIB REQUIRED)
+
+add_library(${PROJECT_NAME} INTERFACE)
+
+target_link_libraries(${PROJECT_NAME} INTERFACE
+  ZLIB::ZLIB)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
