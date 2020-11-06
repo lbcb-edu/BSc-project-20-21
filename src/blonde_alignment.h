@@ -3,6 +3,7 @@
 #define BLONDE_ALIGNMENT_H_
 
 namespace blonde {
+namespace alignment {
 
 enum AlignmentType {
     kLocal,
@@ -52,6 +53,7 @@ int Align(
     return target_len + query_len;   
 }
 
+}
 }
 
 #endif 

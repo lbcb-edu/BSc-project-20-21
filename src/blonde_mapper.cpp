@@ -10,6 +10,8 @@
 
 #define VERSION "v0.1.1"
 
+namespace blonde {
+
 class Sequence {
 public: 
     Sequence(
@@ -79,12 +81,12 @@ void processGenomes(
 
     const std::string first_fragment = fragments[rand() % fragments.size()]->data_;
     const std::string second_fragment = fragments[rand() % fragments.size()]->data_;
-    int64_t align_score = blonde::Align(first_fragment.c_str(), 
-                                        first_fragment.size(),
-                                        second_fragment.c_str(),
-                                        second_fragment.size(),
-                                        blonde::kGlobal,
-                                        1,1,1);
+    int64_t align_score = alignment::Align(first_fragment.c_str(), 
+                                           first_fragment.size(),
+                                           second_fragment.c_str(),
+                                           second_fragment.size(),
+                                           alignment::kGlobal,
+                                           1,1,1);
     std::cout << "Align result: " << align_score << std::endl;
 
 }
@@ -103,8 +105,10 @@ const std::string HELP_MESSAGE = "blonde_mapper usage: \n\n"
                                  "The first file will contain a reference genome in FASTA format,\n" 
                                  "while the second file will contain a set of fragments in either\n"
                                  "FASTA or FASTQ format.\n\n";
+}
 
 int main (int argc, char **argv) {
+    using namespace blonde;
     srand (time(NULL)); /* initialize random seed: */
     int c;              /* result variable for getopt_long function */
     
@@ -176,3 +180,4 @@ int main (int argc, char **argv) {
 
     return 0;
 }
+
