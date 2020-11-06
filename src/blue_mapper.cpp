@@ -2,10 +2,11 @@
 
 #include <iostream>
 
+#include "blue_mapper.hpp"
+
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
 
-const char* mapper_version = "v0.1.0";
 
 static constexpr option options[] = {{"version", no_argument, nullptr, 'v'},
                                      {"help", no_argument, nullptr, 'h'},
@@ -113,7 +114,9 @@ int main(int argc, char* argv[]) {
   int opt;
   while ((opt = getopt_long(argc, argv, "hv", options, nullptr)) != -1) {
     switch (opt) {
-      case 'v': std::cout << mapper_version << std::endl; return 0;
+      case 'v': std::cout << "v" << blue_mapper_VERSION_MAJOR << "." << blue_mapper_VERSION_MINOR << "." 
+                          << blue_mapper_VERSION_MAJOR << std::endl; 
+                return 0;
       case 'h': Help(); return 0;
       default: return 1;
     }

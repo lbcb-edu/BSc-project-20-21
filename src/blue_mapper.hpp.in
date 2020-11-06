@@ -1,0 +1,3 @@
+#define blue_mapper_VERSION_MAJOR @blue_mapper_VERSION_MAJOR@
+#define blue_mapper_VERSION_MINOR @blue_mapper_VERSION_MINOR@
+#define blue_mapper_VERSION_PATCH @blue_mapper_VERSION_PATCH@
