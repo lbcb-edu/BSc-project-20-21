@@ -2,9 +2,11 @@
 #include <string>
 #include <getopt.h>
 #include <vector>
+#include <time.h> 
 
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
+#include "blonde_alignment.h"
 
 #define VERSION "v0.1.1"
 
@@ -38,7 +40,7 @@ void printReferenceGenomesInfo(const std::vector<std::unique_ptr<Sequence>>& gen
     }
 }
 
-void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments) {
+void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments, const bool fastq = false) {
     uint64_t length_sum = 0;
     std::vector<size_t> lengths(fragments.size());
     for (int i = 0; i < int(fragments.size()); i++) {
@@ -55,11 +57,36 @@ void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments)
             break;
         }
     }
+    if (fastq) {
+        std::cout << "FASTQ fragments:\n";
+    } else {
+        std::cout << "FASTA fragments:\n";
+    }
     std::cerr << "Number of fragments: " << fragments.size() << '\n';
     std::cerr << "Average length: " << length_sum * 1.0 / fragments.size() << '\n';
     std::cerr << "N50 length: " << N50 << '\n';
     std::cerr << "Minimal length: " << lengths.back() << '\n';
     std::cerr << "Maximal length: " << lengths.front() << '\n';
+}
+
+void processGenomes(
+    const std::vector<std::unique_ptr<Sequence>>& genomes,
+    const std::vector<std::unique_ptr<Sequence>>& fragments,
+    const bool fastq = false) {
+
+    printReferenceGenomesInfo(genomes);
+    printFragmentsInfo(fragments, fastq);
+
+    const std::string first_fragment = fragments[rand() % fragments.size()]->data_;
+    const std::string second_fragment = fragments[rand() % fragments.size()]->data_;
+    int64_t align_score = blonde::Align(first_fragment.c_str(), 
+                                        first_fragment.size(),
+                                        second_fragment.c_str(),
+                                        second_fragment.size(),
+                                        blonde::kGlobal,
+                                        1,1,1);
+    std::cout << "Align result: " << align_score << std::endl;
+
 }
 
 /* Modificiran primjer https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html */
@@ -78,7 +105,8 @@ const std::string HELP_MESSAGE = "blonde_mapper usage: \n\n"
                                  "FASTA or FASTQ format.\n\n";
 
 int main (int argc, char **argv) {
-    int c;
+    srand (time(NULL)); /* initialize random seed: */
+    int c;              /* result variable for getopt_long function */
     
     while (1) {
         static struct option long_options[] =
@@ -91,7 +119,7 @@ int main (int argc, char **argv) {
         /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "hv",
+        c = getopt_long(argc, argv, "hv",
                         long_options, &option_index);
 
         /* Detect the end of the options. */
@@ -126,14 +154,10 @@ int main (int argc, char **argv) {
     } if (optind < argc) {
         auto genome_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind]);
         auto genomes = genome_parser->Parse(-1);
-        printReferenceGenomesInfo(genomes);
-
-
         try {
             auto fragment_parser = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind + 1]);
             auto fragments = fragment_parser->Parse(-1);
-            std::cout << "FASTA fragments:\n";
-            printFragmentsInfo(fragments);
+            processGenomes(genomes, fragments);
         } catch (std::invalid_argument e) {
             auto fragment_parser = bioparser::Parser<SequenceFastq>::Create<bioparser::FastqParser>(argv[optind + 1]);
             
@@ -146,8 +170,7 @@ int main (int argc, char **argv) {
                     std::make_move_iterator(t.begin()),
                     std::make_move_iterator(t.end()));
             }
-            std::cout << "FASTQ fragments:\n";
-            printFragmentsInfo(fragments);
+            processGenomes(genomes, fragments, true);
         }
     }
 

@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(blonde_mapper)
+project(blonde_mapper LANGUAGES CXX)
 
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # specify the C++ standard
