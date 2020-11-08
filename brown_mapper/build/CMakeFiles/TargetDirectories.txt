@@ -1,0 +1,3 @@
+/home/zvonimir/Desktop/brown_mapper/build/CMakeFiles/rebuild_cache.dir
+/home/zvonimir/Desktop/brown_mapper/build/CMakeFiles/edit_cache.dir
+/home/zvonimir/Desktop/brown_mapper/build/CMakeFiles/brown_mapper.dir
