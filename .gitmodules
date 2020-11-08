@@ -1,0 +1,3 @@
+[submodule "brown_mapper/brown_mapper/bioparser"]
+	path = brown_mapper/brown_mapper/bioparser
+	url = https://github.com/rvaser/bioparser.git
