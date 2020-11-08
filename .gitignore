@@ -5,6 +5,7 @@
 *.gz
 
 blue_mapper
+build
 
 
 ### CMake ###

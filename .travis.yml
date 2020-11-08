@@ -1,0 +1,40 @@
+dist: xenial
+
+language: cpp
+
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+    
+    - os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-3.5
+          packages:
+            - clang++-3.4
+    
+    - os: osx
+      osx_image: xcode12
+      compiler: gcc
+    
+    - os: osx
+      osx_image: xcode12
+      compiler: clang
+    
+
+before_script:
+  - mkdir build
+  - cd build
+  - cmake ..
+
+script:
+  - make

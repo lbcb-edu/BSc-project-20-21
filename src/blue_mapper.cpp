@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
   while ((opt = getopt_long(argc, argv, "hv", options, nullptr)) != -1) {
     switch (opt) {
       case 'v': std::cout << "v" << blue_mapper_VERSION_MAJOR << "." << blue_mapper_VERSION_MINOR << "." 
-                          << blue_mapper_VERSION_MAJOR << std::endl; 
+                          << blue_mapper_VERSION_PATCH << std::endl; 
                 return 0;
       case 'h': Help(); return 0;
       default: return 1;
