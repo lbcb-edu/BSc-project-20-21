@@ -81,13 +81,22 @@ void processGenomes(
 
     const std::string first_fragment = fragments[rand() % fragments.size()]->data_;
     const std::string second_fragment = fragments[rand() % fragments.size()]->data_;
+    // int64_t align_score = alignment::Align(first_fragment.c_str(), 
+    //                                        first_fragment.size(),
+    //                                        second_fragment.c_str(),
+    //                                        second_fragment.size(),
+    //                                        alignment::kGlobal,
+    //                                        1,1,1);
+    std::cout << "\nAligning two random sequences: \n";
+    std::string cigar;
     int64_t align_score = alignment::Align(first_fragment.c_str(), 
-                                           first_fragment.size(),
+                                           5,
                                            second_fragment.c_str(),
-                                           second_fragment.size(),
+                                           5,
                                            alignment::kGlobal,
-                                           1,1,1);
+                                           1,-1,-1, &cigar);
     std::cout << "Align result: " << align_score << std::endl;
+    std::cout << "Cigar str: " << cigar << std::endl;
 
 }
 
