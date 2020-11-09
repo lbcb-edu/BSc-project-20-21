@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/brown_mapper.dir/brown_mapper.cpp.o  -o brown_mapper  /usr/lib/x86_64-linux-gnu/libz.so 

@@ -1,5 +1,0 @@
-/home/zvonimir/Desktop/projektRbrown/BSc-project-20-21/brown_mapper/CMakeFiles/rebuild_cache.dir
-/home/zvonimir/Desktop/projektRbrown/BSc-project-20-21/brown_mapper/CMakeFiles/edit_cache.dir
-/home/zvonimir/Desktop/projektRbrown/BSc-project-20-21/brown_mapper/CMakeFiles/brown_mapper.dir
-/home/zvonimir/Desktop/projektRbrown/BSc-project-20-21/brown_mapper/bioparser/CMakeFiles/rebuild_cache.dir
-/home/zvonimir/Desktop/projektRbrown/BSc-project-20-21/brown_mapper/bioparser/CMakeFiles/edit_cache.dir

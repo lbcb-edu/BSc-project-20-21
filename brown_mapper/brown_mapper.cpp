@@ -19,6 +19,8 @@ static std::string help = "brown_mapper \n"
 
 int main(int argc, char* argv[]) {
 
+
+    std::cout << "evo me" << std::endl;
     int c = getopt_long(argc, argv, "hv", long_options, 0);
     if (c != 1) {
         switch (c){
@@ -31,6 +33,12 @@ int main(int argc, char* argv[]) {
             default:
                 break;
         }
+    }
+
+    if (argc == 3) {
+        std::string file1 = argv[1];
+        std::string file2 = argv[2];
+
     }
 
     return 0;
