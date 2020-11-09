@@ -89,14 +89,16 @@ void processGenomes(
     //                                        1,1,1);
     std::cout << "\nAligning two random sequences: \n";
     std::string cigar;
+    unsigned int target_begin;
     int64_t align_score = alignment::Align(first_fragment.c_str(), 
                                            5,
                                            second_fragment.c_str(),
-                                           5,
-                                           alignment::kGlobal,
-                                           1,-1,-1, &cigar);
+                                           15,
+                                           alignment::kSemiGlobal,
+                                           1,-1,-1, &cigar, &target_begin);
     std::cout << "Align result: " << align_score << std::endl;
     std::cout << "Cigar str: " << cigar << std::endl;
+    std::cout << "Target begin: " << target_begin << std::endl;
 
 }
 

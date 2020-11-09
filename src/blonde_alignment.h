@@ -84,6 +84,114 @@ public:
 };
 
 
+int semiGlobal(
+    const char* query, unsigned int query_len,
+    const char* target, unsigned int target_len,
+    int match,
+    int mismatch,
+    int gap,
+    std::string* cigar = nullptr,
+    unsigned int* target_begin = nullptr) {
+
+    std::vector<std::vector<Cell>> table = std::vector<std::vector<Cell>> (query_len + 1, std::vector<Cell>(target_len + 1));
+    
+    for (int i = 1; i < query_len + 1; i++) {
+        table[i][0].score_ = 0;
+        table[i][0].direction_ = kUp;
+    }
+    for (int i = 1; i < target_len + 1; i++) {
+        table[0][i].score_ = 0;
+        table[0][i].direction_ = kLeft;
+    }
+
+    CellComputer computer = CellComputer(query, query_len, target, target_len, table, match, mismatch, gap);
+
+    for (int i = 1; i < query_len + 1; i++) {
+        for (int j = 1; j < target_len + 1; j++) {
+            computer.computeCell(i, j);
+        }
+    }
+
+    //Find Maximum in last row or column
+    int maximum = table[0][target_len].score_;
+    int max_indx_row = 0;
+    int max_indx_col = target_len;
+    for (int i = 0; i < query_len + 1; i++) {
+        if (table[i][target_len].score_ > maximum) {
+            maximum = table[i][target_len].score_;
+            max_indx_row = i;
+            max_indx_col = target_len;
+        }
+    }
+    for (int i = 0; i < target_len + 1; i++) {
+        if (table[query_len][i].score_ > maximum) {
+            maximum = table[query_len][i].score_;
+            max_indx_row = query_len;
+            max_indx_col = i;
+        }
+    }
+
+    if(cigar || target_begin) {
+        int i = max_indx_row;
+        int j = max_indx_col;
+        int target_begin_result = j;
+        std::string cigar_tmp = "";
+        for(int k = i + 1; k < query_len + 1; k++) {
+            cigar_tmp = "I" + cigar_tmp;
+        }
+        while (i != 0) {
+            switch (table[i][j].direction_) {
+            case kDiagonal:
+                if(table[i-1][j-1].score_ + mismatch == table[i][j].score_) {
+                    cigar_tmp = "X" + cigar_tmp;
+                } else {
+                    cigar_tmp = "=" + cigar_tmp;
+                }
+                i--;
+                j--;
+                break;
+            
+            case kUp:
+                cigar_tmp = "I" + cigar_tmp;
+                i--;
+                break;
+
+            case kLeft:
+                cigar_tmp = "D" + cigar_tmp;
+                j--;
+                break;
+
+            case kNone:
+                throw "cell doesn't have a computed direction";
+                break;
+            }
+            target_begin_result = j;
+        }
+
+        std::string cigar_result = "";
+        char letter = cigar_tmp[0];
+        int cnt = 1;
+        for (int i = 1; i < cigar_tmp.size(); i++) {
+            if (cigar_tmp[i] != letter) {
+                cigar_result += std::to_string(cnt) + letter;
+                letter = cigar_tmp[i];
+                cnt = 1;
+            } else {
+                cnt++;
+            }
+        }
+        if (cigar) {
+            cigar_result += std::to_string(cnt) + letter;
+            *cigar = cigar_result;
+        }
+
+        if (target_begin) {
+            *target_begin = target_begin_result;
+        }
+    }
+    return maximum;
+}
+
 int needlemanWunsch(
     const char* query, unsigned int query_len,
     const char* target, unsigned int target_len,
@@ -95,19 +203,19 @@ int needlemanWunsch(
 
     std::vector<std::vector<Cell>> table = std::vector<std::vector<Cell>> (query_len + 1, std::vector<Cell>(target_len + 1));
     
-    for(int i = 1; i < query_len + 1; i++) {
+    for (int i = 1; i < query_len + 1; i++) {
         table[i][0].score_ = i * gap;
         table[i][0].direction_ = kUp;
     }
-    for(int i = 1; i < target_len + 1; i++) {
+    for (int i = 1; i < target_len + 1; i++) {
         table[0][i].score_ = i * gap;
         table[0][i].direction_ = kLeft;
     }
 
     CellComputer computer = CellComputer(query, query_len, target, target_len, table, match, mismatch, gap);
 
-    for(int i = 1; i < query_len + 1; i++) {
-        for(int j = 1; j < target_len + 1; j++) {
+    for (int i = 1; i < query_len + 1; i++) {
+        for (int j = 1; j < target_len + 1; j++) {
             computer.computeCell(i, j);
         }
     }
@@ -149,7 +257,7 @@ int needlemanWunsch(
         std::string cigar_result = "";
         char letter = cigar_tmp[0];
         int cnt = 1;
-        for(int i = 1; i < cigar_tmp.size(); i++) {
+        for (int i = 1; i < cigar_tmp.size(); i++) {
             if (cigar_tmp[i] != letter) {
                 cigar_result += std::to_string(cnt) + letter;
                 letter = cigar_tmp[i];
@@ -218,7 +326,8 @@ int Align(
         break;
 
     case kSemiGlobal:
-        std::cout << "SemiGlobal" << std::endl;
+        std::cout << "SemiGlobal ";
+        result = semiGlobal(query, query_len, target, target_len, match, mismatch, gap, cigar, target_begin);
         break;
     
     default:
