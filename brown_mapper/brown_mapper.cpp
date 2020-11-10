@@ -58,7 +58,7 @@ struct Sequence {  // or any other name
         const char* sequence, std::uint32_t sequenceLength,
         const char* quality = nullptr, std::uint32_t qualityLength = 0) :
             sequenceName(name), SequenceNameLength(nameLength),
-            sequenceSequence(sequence)  {};
+            sequenceSequence(sequence),  {}
 };
 //auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(path);
 
