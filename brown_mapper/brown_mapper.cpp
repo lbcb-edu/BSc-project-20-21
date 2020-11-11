@@ -71,8 +71,8 @@ struct Sequence {  // or any other name
 
 int main(int argc, char* argv[]) {
 
-
     //std::cout << "evo me1" << std::endl;
+
     int c = getopt_long(argc, argv, "hv", long_options, 0);
     if (c != -1) {
         switch (c){
