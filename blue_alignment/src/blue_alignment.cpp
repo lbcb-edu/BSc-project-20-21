@@ -100,11 +100,55 @@ class Aligner {
         } 
       }
     }
-    //TODO: cigar
+    // TODO: cigar
     return max_value;
   }
 
-  int SemiGlobal() { return 0; }  // TODO
+  int SemiGlobal() { 
+    for (int i = 1; i < query_len + 1; i++)
+      matrix_[i][0] = {0, Operation::kNone};
+    for (int j = 1; j < target_len + 1; j++)
+      matrix_[0][j] = {0, Operation::kNone};
+
+    
+    for (int i = 1; i < query_len + 1; i++) {
+      for (int j = 1; j < target_len + 1; j++) {
+        Cell diagonal;
+        if(query[i - 1] == target[j - 1]) // match
+          diagonal = {matrix_[i - 1][j - 1].value + match, Operation::kMatch};
+        else
+          diagonal = {matrix_[i - 1][j - 1].value + mismatch, 
+                      Operation::kMismatch};
+        
+        Cell top = {matrix_[i - 1][j].value + gap, Operation::kDelete};
+        Cell left = {matrix_[i][j - 1].value + gap, Operation::kInsert};
+
+
+        matrix_[i][j] = std::max({diagonal, top, left}, [](Cell a, Cell b) {
+          return a.value < b.value;
+        });
+      }
+    }
+
+    int max_value_row, max_value_column = 0;
+    int max_value;
+
+    for (int i = 0; i < query_len + 1; i++) {
+        if (matrix_[i][target_len].value > max_value_column) {
+          max_value_column = matrix_[i][target_len].value;
+        }
+    }
+    for (int j = 0; j < target_len + 1; j++) {
+        if (matrix_[query_len][j].value > max_value_row) {
+          max_value_row = matrix_[query_len][j].value;
+        }
+    }
+
+    max_value = max_value_column > max_value_row ? max_value_column : max_value_row;
+
+    // TODO: cigar
+    return max_value;
+  } 
 
  private:
   std::vector<std::vector<Cell>> matrix_;
