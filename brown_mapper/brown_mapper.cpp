@@ -20,37 +20,20 @@ static std::string help = "brown_mapper \n"
                             "The second file needs to contain a set of fragments\n"
                             "in either FASTA or FASTQ format.";
 
-/*fastq
-static struct Sequence {  // or any other name
- public:
-  Sequence(  // required arguments
-      const char*, std::uint32_t,
-      const char*, std::uint32_t,
-      const char*, std::uint32_t) {
-    // implementation
-  }
-}
-auto p = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(path);
+static std::string genomLine = "\n-------------------------\n"
+                                "      REFERENCE GENOM     \n"
+                                "-------------------------\n\n";
+static std::string fragmentLine = "\n-------------------------\n"
+                                "       FRAGMENTS     \n"
+                                "-------------------------\n\n";
 
-// parse in chunks
-std::vector<std::unique_ptr<Sequence>> s;
-std::uint32_t chunk_size = 500 * 1024 * 1024;  // 500 MB
-for (auto t = p->parse(chunk_size); !t.empty(); t = p->parse(chunk_size)) {
-  s.insert(
-      s.end(),
-      std::make_move_iterator(t.begin()),
-      std::make_move_iterator(t.end()));
-}
-*/
-
-//fasta
-struct Sequence {  // or any other name
+struct Sequence {
   public:
     std::string sequenceName;
     std::string sequenceSequence;   
     std::string sequenceQuality;
 
-    Sequence(  // required arguments
+    Sequence( 
         const char* name, std::uint32_t nameLength,
         const char* sequence, std::uint32_t sequenceLength,
         const char* quality = nullptr, std::uint32_t qualityLength = 0) :
@@ -61,11 +44,38 @@ struct Sequence {  // or any other name
                 }
             }
 };
-//auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(path);
 
-// parse whole file
-//auto s = p->Parse(-1);
+bool compareFragmentLengths(std::unique_ptr<Sequence>& s1, std::unique_ptr<Sequence>& s2 ) {
+    return s1->sequenceSequence.length() > s2->sequenceSequence.length();
+}
 
+void printsFragmentsStats(std::vector<std::unique_ptr<Sequence>>& fragments) {
+
+    int sumLength = 0;
+    sort(fragments.begin(), fragments.end(), compareFragmentLengths);
+    for (int i = 0; i < fragments.size(); i++ ) 
+        sumLength += fragments[i]->sequenceSequence.length();
+    
+    int N50sum = 0;
+    int N50;
+    for (int i = 0; i < fragments.size(); i++ ) {
+        N50sum += fragments[i]->sequenceSequence.length();
+        if (N50sum > 0.5 * sumLength) {
+            N50 = fragments[i]->sequenceSequence.length();
+            break;
+        }
+    }
+        
+
+    std::cerr << "Number of sequences: " <<  fragments.size() << std::endl;
+    std::cerr << "Total length of all fragments: " << sumLength << std::endl;
+    std::cerr << "Largest fragment: " << fragments[0]->sequenceName << std::endl;
+    std::cerr << "      length: " << fragments[0]->sequenceSequence.length() << std::endl;
+    std::cerr << "Smallest fragment: " << fragments[fragments.size() - 1]->sequenceName << std::endl;
+    std::cerr << "      length: " << fragments[fragments.size() - 1]->sequenceSequence.length() << std::endl;
+    std::cerr << "Average length: " << ((double) sumLength) / fragments.size() << std::endl;
+    std::cerr << "N50 length: " << N50 << std::endl << std::endl;
+}
 
 
 
@@ -77,44 +87,65 @@ int main(int argc, char* argv[]) {
     if (c != -1) {
         switch (c){
             case 'h' :
-                std::cout << help << std::endl;
+                std::cerr << help << std::endl;
                 return 0;;
             case 'v' :
-                std::cout << VERSION << std::endl;
+                std::cerr << VERSION << std::endl;
                 return 0;
             default:
                 return 0;
         }
     }
     //std:: cout << "evo me 2" << std::endl;
-    if (argc == 2) { //promjeni u 3
+    if (argc == 3) { //promjeni u 3
         //std::cout << "ide pravit stringove";
         std::string file1 = argv[1];
-        //std::string file2 = argv[2];
+        std::string file2 = argv[2];
+
+        std::vector<std::unique_ptr<Sequence>> referenceGenom;
         if (file1.compare(file1.length() - 6, 6, ".fasta") == 0 ||
-            file1.compare(file1.length() - 3, 3, ".fa") == 0) {
+            file1.compare(file1.length() - 3, 3, ".fa") == 0 ||
+            file1.compare(file1.length() - 4, 4, ".fna") == 0 ||
+            file1.compare(file1.length() - 4, 4, ".ffn") == 0 ||
+            file1.compare(file1.length() - 4, 4, ".faa") == 0 ||
+            file1.compare(file1.length() - 4, 4, ".frn") == 0) {
                 auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[1]);
-                std::vector<std::unique_ptr<Sequence>> s = p->Parse(-1);
-                std::cout << s.front()->sequenceName << std::endl;
-                std::cout << s.front()->sequenceSequence.length() << std::endl;
-                
+                referenceGenom = p->Parse(-1);                
         } else {
             std::cerr << "First file needs to be in FASTA format!" << std::endl;
+            return 1;
         }
-
-        /*if ((file2.compare(file2.length() - 6, 6, ".fastq") == 0 ||
+        
+        std::vector<std::unique_ptr<Sequence>> fragments;
+        if ((file2.compare(file2.length() - 6, 6, ".fastq") == 0 ||
             file2.compare(file2.length() - 3, 3, ".fq") == 0)) {
                 auto p = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(argv[2]);
-                std::vector<std::unique_ptr<Sequence>> s;
                 std::uint32_t chunk_size = 500 * 1024 * 1024;  // 500 MB
                 for (auto t = p->Parse(chunk_size); !t.empty(); t = p->Parse(chunk_size)) {
-                     s.insert(
-                        s.end(),
+                    fragments.insert(
+                        fragments.end(),
                         std::make_move_iterator(t.begin()),
                         std::make_move_iterator(t.end()));
                 }
-        }*/
+        } else if (file2.compare(file2.length() - 6, 6, ".fasta") == 0 ||
+            file2.compare(file2.length() - 3, 3, ".fa") == 0 ||
+            file2.compare(file2.length() - 4, 4, ".fna") == 0 ||
+            file2.compare(file2.length() - 4, 4, ".ffn") == 0 ||
+            file2.compare(file2.length() - 4, 4, ".faa") == 0 ||
+            file2.compare(file2.length() - 4, 4, ".frn") == 0) {
+                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[2]);
+                fragments = p->Parse(-1);
+        } else {
+            std::cerr << "Second file needs to be in FASTA or FASTQ format!" << std::endl;
+            return 1;
+        }
 
+        std::cerr << genomLine;
+        std::cerr << "Reference genom name: " << referenceGenom.front()->sequenceName << std::endl;
+        std::cerr << "Reference genom length: "<< referenceGenom.front()->sequenceSequence.length() << std::endl;
+        
+        std::cerr << fragmentLine;
+        printsFragmentsStats(fragments);
     }
 
     return 0;
