@@ -74,28 +74,77 @@ public:
         for (int i = 1; i < table.size(); i++) {
             for (int j = 1; j < table[0].size(); j++) {
                 computeCell(i, j);
-                // Ovo je dio koda za Lokalni alignment koji jos nije napisan, nisam sigurran je li < 0 ili <= 0
-                // if (type == kLocal && table[i][j].score_ < 0) {
-                //     table[i][j].score_ = 0;
-                //     table[i][j].direction_ = kNone;
-                // }
+                if (type == kLocal && table[i][j].score_ <= 0) {
+                    table[i][j].score_ = 0;
+                    table[i][j].direction_ = kNone;
+                }
             }
         }
     }
 };
 
 
-void initAlignmentTable(std::vector<std::vector<Cell>>& table, int init_penalty) {
+void initAlignmentTable(std::vector<std::vector<Cell>>& table, int init_penalty, AlignmentType type) {
     int num_of_rows = table.size();
     int num_of_cols = table[0].size();
+    if (type == kLocal || type == kSemiGlobal) init_penalty = 0;
+    SrcDirection top_row_direction = kNone;
+    SrcDirection first_col_direction = kNone;
+    switch(type) {
+    case kGlobal:
+        top_row_direction = kLeft;
+        first_col_direction = kUp;
+        break;
+    
+    case kSemiGlobal:
+        first_col_direction = kUp;
+        break;
+    
+    case kLocal:
+        break;
+    }
     
     for (int i = 1; i < num_of_rows; i++) {
     table[i][0].score_ = i * init_penalty;
-    table[i][0].direction_ = kUp;
+    table[i][0].direction_ = first_col_direction;
     }
     for (int i = 1; i < num_of_cols; i++) {
         table[0][i].score_ = i * init_penalty;
-        table[0][i].direction_ = kLeft;
+        table[0][i].direction_ = top_row_direction;
+    }
+}
+
+void calcAlignPathCigar(
+    const std::vector<std::vector<Cell>> table, 
+    int mismatch, 
+    std::string& cigar_tmp, 
+    int& i, int& j) {
+    
+    while (table[i][j].direction_ != kNone) {
+        switch (table[i][j].direction_) {
+        case kDiagonal:
+            if(table[i-1][j-1].score_ + mismatch == table[i][j].score_) {
+                cigar_tmp = "X" + cigar_tmp;
+            } else {
+                cigar_tmp = "=" + cigar_tmp;
+            }
+            i--;
+            j--;
+            break;
+        
+        case kUp:
+            cigar_tmp = "I" + cigar_tmp;
+            i--;
+            break;
+
+        case kLeft:
+            cigar_tmp = "D" + cigar_tmp;
+            j--;
+            break;
+
+        case kNone:
+            break;
+        }
     }
 }
 
@@ -125,24 +174,10 @@ int Align(
     std::string* cigar = nullptr,
     unsigned int* target_begin = nullptr) {
 
-    std::cout << "Target sequence:\n";
-    for(int i = 0; i < target_len; i++) {
-        std::cout << target[i];
-    }
-    std::cout << "\n";
-    
-    std::cout << "Query sequence:\n";
-    for(int i = 0; i < query_len; i++) {
-        std::cout << query[i];
-    }
-    std::cout << "\n";
-
-    int init_penalty = 0;
-    if (type == kGlobal)
-        init_penalty = gap;
-
     std::vector<std::vector<Cell>> table = std::vector<std::vector<Cell>> (query_len + 1, std::vector<Cell>(target_len + 1));
-    initAlignmentTable(table, init_penalty);
+    initAlignmentTable(table, gap, type);
+    int row_cnt = table.size();
+    int col_cnt = table[0].size();
 
     CellComputer computer = CellComputer(query, query_len, target, target_len, table, match, mismatch, gap);
     computer.computeAllCells(type);
@@ -151,46 +186,45 @@ int Align(
     int target_begin_result;
     std::string cigar_result = "";
     switch (type) {
-    case kLocal: { // Treba napisati
-        std::cout << "Local" << std::endl;
-        align_score = 0;
+    case kLocal: {
+        //Find Maximum in whole table 
+        int maximum = table[0][0].score_;
+        int max_indx_row = 0;
+        int max_indx_col = 0;
+        for (int i = 0; i < row_cnt; i++) {
+            for (int j = 0; j < col_cnt; j++) {
+                if (table[i][j].score_ >= maximum) {
+                    maximum = table[i][j].score_;
+                    max_indx_row = i;
+                    max_indx_col = j;
+                }
+            }
+        }
+        if (cigar || target_begin) {
+            int i = max_indx_row;
+            int j = max_indx_col;
+            std::string cigar_tmp = "";
+            for(int k = i + 1; k < query_len + 1; k++) {
+                cigar_tmp = "S" + cigar_tmp;
+            }
+            calcAlignPathCigar(table, mismatch, cigar_tmp, i, j);
+            for(int k = i; k > 0; k--) {
+                cigar_tmp = "S" + cigar_tmp;
+            }
+            target_begin_result = j;
+            compressCigar(cigar_tmp, cigar_result);
+
+        }
+        align_score = maximum;
         break;
     }
 
     case kGlobal: {
-        std::cout << "Global ";
-        
         if (cigar) {
             int i = query_len;
             int j = target_len;
             std::string cigar_tmp = "";
-            while (i != 0 || j != 0) {
-                switch (table[i][j].direction_) {
-                case kDiagonal:
-                    if(table[i-1][j-1].score_ + mismatch == table[i][j].score_) {
-                        cigar_tmp = "X" + cigar_tmp;
-                    } else {
-                        cigar_tmp = "=" + cigar_tmp;
-                    }
-                    i--;
-                    j--;
-                    break;
-                
-                case kUp:
-                    cigar_tmp = "I" + cigar_tmp;
-                    i--;
-                    break;
-
-                case kLeft:
-                    cigar_tmp = "D" + cigar_tmp;
-                    j--;
-                    break;
-
-                case kNone:
-                    throw "cell doesn't have a computed direction";
-                    break;
-                }
-            }
+            calcAlignPathCigar(table, mismatch, cigar_tmp, i, j);
             compressCigar(cigar_tmp, cigar_result);
         }
         target_begin_result = 0;
@@ -199,20 +233,18 @@ int Align(
     }
 
     case kSemiGlobal: {
-        std::cout << "SemiGlobal ";
-        
         //Find Maximum in last row or column
         int maximum = table[0][target_len].score_;
         int max_indx_row = 0;
         int max_indx_col = target_len;
-        for (int i = 0; i < query_len + 1; i++) {
+        for (int i = 0; i < row_cnt; i++) {
             if (table[i][target_len].score_ > maximum) {
                 maximum = table[i][target_len].score_;
                 max_indx_row = i;
                 max_indx_col = target_len;
             }
         }
-        for (int i = 0; i < target_len + 1; i++) {
+        for (int i = 0; i < col_cnt; i++) {
             if (table[query_len][i].score_ > maximum) {
                 maximum = table[query_len][i].score_;
                 max_indx_row = query_len;
@@ -223,39 +255,12 @@ int Align(
         if(cigar || target_begin) {
             int i = max_indx_row;
             int j = max_indx_col;
-            target_begin_result = j;
             std::string cigar_tmp = "";
-            for(int k = i + 1; k < query_len + 1; k++) {
+            for(int k = i + 1; k < row_cnt; k++) {
                 cigar_tmp = "I" + cigar_tmp;
             }
-            while (i != 0) {
-                switch (table[i][j].direction_) {
-                case kDiagonal:
-                    if(table[i-1][j-1].score_ + mismatch == table[i][j].score_) {
-                        cigar_tmp = "X" + cigar_tmp;
-                    } else {
-                        cigar_tmp = "=" + cigar_tmp;
-                    }
-                    i--;
-                    j--;
-                    break;
-                
-                case kUp:
-                    cigar_tmp = "I" + cigar_tmp;
-                    i--;
-                    break;
-
-                case kLeft:
-                    cigar_tmp = "D" + cigar_tmp;
-                    j--;
-                    break;
-
-                case kNone:
-                    throw "cell doesn't have a computed direction";
-                    break;
-                }
-                target_begin_result = j;
-            }
+            calcAlignPathCigar(table, mismatch, cigar_tmp, i, j);
+            target_begin_result = j;
             compressCigar(cigar_tmp, cigar_result);
         }
         align_score = maximum;
