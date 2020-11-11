@@ -1,16 +1,21 @@
+#include "blue_mapper.hpp"
+
 #include <getopt.h>
 
 #include <iostream>
 
-#include "blue_mapper.hpp"
-
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
-
 
 static constexpr option options[] = {{"version", no_argument, nullptr, 'v'},
                                      {"help", no_argument, nullptr, 'h'},
                                      {nullptr, 0, nullptr, 0}};
+
+void Version() {
+  std::cout << "v" << blue_mapper_VERSION_MAJOR << "."
+            << blue_mapper_VERSION_MINOR << "." << blue_mapper_VERSION_PATCH
+            << std::endl;
+}
 
 void Help() {
   std::cout << "usage: blue_mapper [options] <reference-genome> <fragments>\n"
@@ -61,8 +66,8 @@ bool HasExtension(const std::string& file,
                                        : false;
   };
 
-  for (auto& s : extensions) {
-    if (has_suffix(file, s) || has_suffix(file, s + ".gz")) return true;
+  for (auto& ext : extensions) {
+    if (has_suffix(file, ext) || has_suffix(file, ext + ".gz")) return true;
   }
   return false;
 }
@@ -114,9 +119,7 @@ int main(int argc, char* argv[]) {
   int opt;
   while ((opt = getopt_long(argc, argv, "hv", options, nullptr)) != -1) {
     switch (opt) {
-      case 'v': std::cout << "v" << blue_mapper_VERSION_MAJOR << "." << blue_mapper_VERSION_MINOR << "." 
-                          << blue_mapper_VERSION_PATCH << std::endl; 
-                return 0;
+      case 'v': Version(); return 0;
       case 'h': Help(); return 0;
       default: return 1;
     }
