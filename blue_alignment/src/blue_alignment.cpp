@@ -130,7 +130,8 @@ class Aligner {
       }
     }
 
-    int max_value_row, max_value_column = 0;
+    int max_value_row = 0;
+    int max_value_column = 0;
     int max_value;
 
     for (int i = 0; i < query_len + 1; i++) {
