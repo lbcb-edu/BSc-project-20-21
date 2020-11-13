@@ -3,6 +3,7 @@
 #include "bioparser/include/bioparser/parser.hpp"
 #include "bioparser/include/bioparser/fastq_parser.hpp"
 #include "bioparser/include/bioparser/fasta_parser.hpp"
+#include "brown_alignment.hpp"
 
 #define VERSION "v0.1"
 
@@ -23,6 +24,7 @@ static std::string help = "brown_mapper \n"
 static std::string genomLine = "\n-------------------------\n"
                                 "      REFERENCE GENOM     \n"
                                 "-------------------------\n\n";
+
 static std::string fragmentLine = "\n-------------------------\n"
                                 "       FRAGMENTS     \n"
                                 "-------------------------\n\n";
@@ -66,7 +68,6 @@ void printsFragmentsStats(std::vector<std::unique_ptr<Sequence>>& fragments) {
         }
     }
         
-
     std::cerr << "Number of sequences: " <<  fragments.size() << std::endl;
     std::cerr << "Total length of all fragments: " << sumLength << std::endl;
     std::cerr << "Largest fragment: " << fragments[0]->sequenceName << std::endl;
@@ -82,6 +83,8 @@ void printsFragmentsStats(std::vector<std::unique_ptr<Sequence>>& fragments) {
 int main(int argc, char* argv[]) {
 
     //std::cout << "evo me1" << std::endl;
+
+    std::cout << brown::bzvz();
 
     int c = getopt_long(argc, argv, "hv", long_options, 0);
     if (c != -1) {
