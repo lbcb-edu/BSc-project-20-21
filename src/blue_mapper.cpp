@@ -3,13 +3,20 @@
 #include <getopt.h>
 
 #include <iostream>
+#include <random>
 
+#include "alignment/blue_alignment.hpp"
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
 
-static constexpr option options[] = {{"version", no_argument, nullptr, 'v'},
-                                     {"help", no_argument, nullptr, 'h'},
-                                     {nullptr, 0, nullptr, 0}};
+static constexpr option options[] = {
+    {"algorithm", required_argument, nullptr, 'a'},
+    {"match", required_argument, nullptr, 'm'},
+    {"mismatch", required_argument, nullptr, 'n'},
+    {"gap", required_argument, nullptr, 'g'},
+    {"version", no_argument, nullptr, 'v'},
+    {"help", no_argument, nullptr, 'h'},
+    {nullptr, 0, nullptr, 0}};
 
 void Version() {
   std::cout << "v" << blue_mapper_VERSION_MAJOR << "."
@@ -25,9 +32,26 @@ void Help() {
                "  <fragments>       \tset of fragments in FASTA/FASTQ format"
                "(can be compressed with gzip)\n"
                "\n"
-               "  options\n"
-               "    -v, --version\tPrint version number\n"
-               "    -h, --help   \tPrint usage information\n";
+               "  options:\n"
+               "    -a, --algorithm <int>\n"
+               "      default: 0\n"
+               "      alignment algorithm:\n"
+               "        0 - local (Smith-Waterman)\n"
+               "        1 - global (Needleman-Wunsch)\n"
+               "        2 - semi-global\n"
+               "    -m, --match <int>\n"
+               "      default: 5\n"
+               "      score for matching bases\n"
+               "    -n, --mismatch <int>\n"
+               "      default: -4\n"
+               "      score for mismatching bases\n"
+               "    -g, --gap <int>\n"
+               "      default: -8\n"
+               "      linear gap penalty\n"
+               "    -v, --version\n"
+               "      Print version number\n"
+               "    -h, --help\n"
+               "      Print usage information\n";
 }
 
 void InvalidExtension(const std::string& file) {
@@ -107,7 +131,7 @@ void PrintStats(const std::vector<std::unique_ptr<Sequence>>& fragments) {
             << length_sum / (double)fragments.size() << '\n'
             << "  N50 length:          " << N50 << '\n'
             << "  Minimal Length:      " << lengths.back() << '\n'
-            << "  Maximal Length:      " << lengths[0] << '\n';
+            << "  Maximal Length:      " << lengths[0] << "\n\n";
 }
 
 template <template <class> class T>
@@ -117,8 +141,18 @@ std::vector<std::unique_ptr<Sequence>> Parse(const std::string& file) {
 
 int main(int argc, char* argv[]) {
   int opt;
-  while ((opt = getopt_long(argc, argv, "hv", options, nullptr)) != -1) {
+  int8_t match_cost = 5;
+  int8_t mismatch_cost = -4;
+  int8_t gap_cost = -8;
+  int8_t algorithm = 0;
+
+  const char* opt_string = "a:m:n:g:hv";
+  while ((opt = getopt_long(argc, argv, opt_string, options, nullptr)) != -1) {
     switch (opt) {
+      case 'a': algorithm = atoi(optarg); break;
+      case 'm': match_cost = atoi(optarg); break;
+      case 'n': mismatch_cost = atoi(optarg); break;
+      case 'g': gap_cost = atoi(optarg); break;
       case 'v': Version(); return 0;
       case 'h': Help(); return 0;
       default: return 1;
@@ -137,6 +171,7 @@ int main(int argc, char* argv[]) {
   std::vector<std::unique_ptr<Sequence>> fragments;
   std::unique_ptr<Sequence> reference;
 
+  std::cout << "Parsing..." << std::endl;
   try {
     if (IsFasta(reference_file)) {
       reference =
@@ -165,6 +200,36 @@ int main(int argc, char* argv[]) {
             << "  Length: " << reference->data_.size() << "\n\n";
 
   PrintStats(fragments);
+
+  // align two random sequences
+  std::cout << "Aligning two random sequences..." << std::endl;
+  std::vector<Sequence*> short_fragments;  // fragments with length < 5000
+  for (auto& ptr : fragments)
+    if (ptr->data_.size() < 5000) short_fragments.push_back(ptr.get());
+
+  std::vector<Sequence*> out;
+  std::sample(short_fragments.begin(), short_fragments.end(),
+              std::back_inserter(out), 2, std::mt19937{std::random_device{}()});
+
+  std::cout << "  Target\n"
+            << "    Name:   " << out[0]->name_ << '\n'
+            << "    Length: " << out[0]->data_.size() << '\n'
+            << "  Query\n"
+            << "    Name:   " << out[1]->name_ << '\n'
+            << "    Length: " << out[1]->data_.size() << "\n\n";
+
+  std::string& target = out[0]->data_;
+  std::string& query = out[1]->data_;
+  std::string cigar;
+  unsigned int target_begin;
+  int alignment_score =
+      blue::Align(query.c_str(), query.size(), target.c_str(), target.size(),
+                  static_cast<blue::AlignmentType>(algorithm), match_cost,
+                  mismatch_cost, gap_cost, &cigar, &target_begin);
+
+  std::cout << "  Alignment score:    " << alignment_score << '\n'
+            << "  Target begin index: " << target_begin << "\n\n"
+            << "  CIGAR: " << cigar << std::endl;
 
   return 0;
 }
