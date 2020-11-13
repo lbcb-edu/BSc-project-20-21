@@ -40,6 +40,14 @@ matrix:
 
 before_install:
   - eval "${SET_COMPILER}"
+  - git clone https://github.com/google/googletest
+  - cd googletest
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make
+  - sudo make install
+  - cd ../../
 
 before_script:
   - mkdir build
@@ -48,3 +56,4 @@ before_script:
 
 script:
   - make
+  - ./bin/blue_mapper_test
