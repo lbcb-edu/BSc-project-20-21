@@ -12,9 +12,12 @@ target_include_directories(
   "${PROJECT_NAME}" PUBLIC
   "${PROJECT_BINARY_DIR}/include"
   "${PROJECT_BINARY_DIR}/blue_alignment/include"
-)
+  )
+
+add_subdirectory("blue_alignment" EXCLUDE_FROM_ALL)
+
 
 if (NOT TARGET bioparser)
   add_subdirectory(bioparser EXCLUDE_FROM_ALL)
 endif ()
-target_link_libraries(blue_mapper bioparser)
+target_link_libraries(blue_mapper PUBLIC blue_alignment bioparser)

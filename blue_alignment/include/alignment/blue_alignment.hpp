@@ -4,7 +4,7 @@
 
 namespace blue {
 
-enum AlignmentType { kGlobal = 0, kLocal, kSemiGlobal };
+enum AlignmentType { kLocal = 0, kGlobal, kSemiGlobal };
 
 int Align(const char* query, unsigned int query_len, const char* target,
           unsigned int target_len, AlignmentType type, int match, int mismatch,

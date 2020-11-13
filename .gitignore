@@ -6,7 +6,8 @@
 
 blue_mapper
 build
-
+include/blue_mapper.hpp
+.clang-format
 
 ### CMake ###
 CMakeLists.txt.user
