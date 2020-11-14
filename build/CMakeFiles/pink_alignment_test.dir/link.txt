@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/pink_alignment_test.dir/home/andrija/Desktop/pink_mapper/test/pink_alignment_test.cpp.o  -o pink_alignment_test  /usr/lib/x86_64-linux-gnu/libgtest_main.a /usr/lib/x86_64-linux-gnu/libgtest.a -lpthread 

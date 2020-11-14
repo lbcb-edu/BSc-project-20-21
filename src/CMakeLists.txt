@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.2.2)
 
 # set the project name and version
+cmake_policy(SET CMP0048 NEW)
 project(pink_mapper VERSION 0.2.0)
 
 configure_file(Pink_mapperConfig.h.in Pink_mapperConfig.h)
@@ -35,22 +36,18 @@ endif()
 option(alignment_build_tests "Build alignment unit tests" OFF)
 
 if (alignment_build_tests)
-  find_package(GTest REQUIRED)
   enable_testing()
+  find_package(GTest REQUIRED)
+  
 
   
   include_directories(${ALIGN_INCLUDES})
   
   
   add_executable(pink_alignment_test ${TEST_SRC_FILES})
-  target_link_libraries(pink_alignment_test
-    GTest::Main)
-
-  add_test(UnitTests pink_alignment_test)
+  target_link_libraries(pink_alignment_test ${GTEST_LIBRARIES})
 endif ()
 
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/help.txt
     ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-
