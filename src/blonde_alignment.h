@@ -1,7 +1,11 @@
 #ifndef BLONDE_ALIGNMENT_H_
 #define BLONDE_ALIGNMENT_H_
 
+#include <iostream>
 #include <string>
+#include <getopt.h>
+#include <vector>
+#include <time.h>
 
 namespace blonde {
 namespace alignment {
@@ -95,15 +99,15 @@ void initAlignmentTable(std::vector<std::vector<Cell>>& table, int init_penalty,
         top_row_direction = kLeft;
         first_col_direction = kUp;
         break;
-    
+
     case kSemiGlobal:
         first_col_direction = kUp;
         break;
-    
+
     case kLocal:
         break;
     }
-    
+
     for (int i = 1; i < num_of_rows; i++) {
     table[i][0].score_ = i * init_penalty;
     table[i][0].direction_ = first_col_direction;
@@ -115,11 +119,11 @@ void initAlignmentTable(std::vector<std::vector<Cell>>& table, int init_penalty,
 }
 
 void calcAlignPathCigar(
-    const std::vector<std::vector<Cell>> table, 
-    int mismatch, 
-    std::string& cigar_tmp, 
+    const std::vector<std::vector<Cell>> table,
+    int mismatch,
+    std::string& cigar_tmp,
     int& i, int& j) {
-    
+
     while (table[i][j].direction_ != kNone) {
         switch (table[i][j].direction_) {
         case kDiagonal:
@@ -131,7 +135,7 @@ void calcAlignPathCigar(
             i--;
             j--;
             break;
-        
+
         case kUp:
             cigar_tmp = "I" + cigar_tmp;
             i--;
@@ -187,7 +191,7 @@ int Align(
     std::string cigar_result = "";
     switch (type) {
     case kLocal: {
-        //Find Maximum in whole table 
+        //Find Maximum in whole table
         int maximum = table[0][0].score_;
         int max_indx_row = 0;
         int max_indx_col = 0;
@@ -266,18 +270,18 @@ int Align(
         align_score = maximum;
         break;
     }
-    
+
     default:
         break;
     }
-    
+
     //Rezultati
     if (cigar) *cigar = cigar_result;
     if (target_begin) *target_begin = target_begin_result;
-    return align_score;   
+    return align_score;
 }
 
 }
 }
 
-#endif 
+#endif

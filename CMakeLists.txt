@@ -15,3 +15,12 @@ endif ()
 
 # Project subdirs 
 add_subdirectory(src)
+# add_subdirectory(test)
+
+option(blonde_alignment_tests "blonde alignment tests" ON)
+if (blonde_alignment_tests)
+  enable_testing()
+  find_package(GTest REQUIRED)
+  add_executable(${PROJECT_NAME}_test test/blonde_alignment_test.cpp)
+  target_link_libraries(${PROJECT_NAME}_test PUBLIC blonde_alignment GTest::Main)
+endif()
