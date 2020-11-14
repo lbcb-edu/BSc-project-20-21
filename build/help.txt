@@ -1,0 +1,21 @@
+	Usage:
+	   ./pink_mapper [PATH] [PATH]
+	   ./pink_mapper [PATH] [PATH] -a [OPTION m|n|g]...
+	   ./pink_mapper [OPTION h|v]
+
+	   Accepts two FASTA or FASTQ files and outpus basic statistics.
+	   The first file is a refrence genome in FASTA format,
+	   while the second file is a set of fragments in either FASTA or FASTQ format.
+	   Basic statistic include:
+	   	-names of sequences in the reference file and their lengths
+	   	-number of sequences in the fragments file, their average length, N50 length, minimal and maximal length
+	   Optionally, it picks two random fragment sequences with lengths not exceeding 5000 and aligns them.
+	   
+
+	Options:
+	   -v --version                   = Print version number and exit
+	   -h --help                      = Display this information and exit
+	   -a <alignment_type>    	   = global, local or semiglobal
+	   -m <match>              	   = match cost
+	   -n <mismatch>		   = mismatch cost
+	   -g <gap>			   = gap cost

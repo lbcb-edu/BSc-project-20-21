@@ -1,3 +1,0 @@
-/home/andrija/Desktop/pink_mapper/build/CMakeFiles/rebuild_cache.dir
-/home/andrija/Desktop/pink_mapper/build/CMakeFiles/edit_cache.dir
-/home/andrija/Desktop/pink_mapper/build/CMakeFiles/pink_mapper.dir

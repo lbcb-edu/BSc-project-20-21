@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/andrija/Desktop/pink_mapper/include/align/pink_alignment.hpp
+iostream
+-
+algorithm
+-
+
+/home/andrija/Desktop/pink_mapper/test/pink_alignment_test.cpp
+iostream
+-
+gtest/gtest.h
+-
+pink_alignment.hpp
+/home/andrija/Desktop/pink_mapper/test/pink_alignment.hpp
+
