@@ -71,6 +71,8 @@ void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments,
     std::cerr << "Maximal length: " << lengths.front() << '\n';
 }
 
+constexpr int LENGTH_LIMIT = 5000;
+
 static int help_flag = 0;     /* Flag set by ‘--help’.    */
 static int version_flag = 0;  /* Flag set by ‘--version’. */
 static int algorithm = 0;
@@ -86,8 +88,15 @@ void processGenomes(
     printReferenceGenomesInfo(genomes);
     printFragmentsInfo(fragments, fastq);
 
-    const std::string first_fragment = fragments[rand() % fragments.size()]->data_;
-    const std::string second_fragment = fragments[rand() % fragments.size()]->data_;
+    std::vector<Sequence> short_fragments;
+    for (const auto& p : fragments) {
+        if (p->data_.size() < LENGTH_LIMIT) {
+            short_fragments.push_back(*p);
+        }
+    }
+
+    const std::string first_fragment = short_fragments[rand() % short_fragments.size()].data_;
+    const std::string second_fragment = short_fragments[rand() % short_fragments.size()].data_;
 
     unsigned int first_len = first_fragment.size();
     unsigned int second_len = second_fragment.size();
