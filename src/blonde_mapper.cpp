@@ -2,7 +2,7 @@
 #include <string>
 #include <getopt.h>
 #include <vector>
-#include <time.h> 
+#include <time.h>
 
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
@@ -13,7 +13,7 @@
 namespace blonde {
 
 class Sequence {
-public: 
+public:
     Sequence(
         const char* name, std::uint32_t name_len,
         const char* data, std::uint32_t data_len) : name_(name, name_len), data_(data, data_len) {
@@ -29,9 +29,9 @@ public:
         const char* name,    std::uint32_t name_len,
         const char* data,    std::uint32_t data_len,
         const char* quality, std::uint32_t quality_len) : Sequence(name, name_len, data, data_len), quality_(quality, quality_len) {
-    } 
+    }
 
-public: 
+public:
     std::string quality_;
 };
 
@@ -50,7 +50,7 @@ void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments,
         length_sum += lengths[i];
     }
     sort(lengths.begin(), lengths.end(), std::greater<size_t>());
-    
+
     uint64_t N50 = -1, tmp_sum = 0;
     for (int i = 0; i < int(fragments.size()); i++) {
         tmp_sum += lengths[i];
@@ -71,6 +71,13 @@ void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments,
     std::cerr << "Maximal length: " << lengths.front() << '\n';
 }
 
+static int help_flag = 0;     /* Flag set by ‘--help’.    */
+static int version_flag = 0;  /* Flag set by ‘--version’. */
+static int algorithm = 0;
+static int match_cost = 1;
+static int mismatch_cost = -1;
+static int gap_cost = -1;
+
 void processGenomes(
     const std::vector<std::unique_ptr<Sequence>>& genomes,
     const std::vector<std::unique_ptr<Sequence>>& fragments,
@@ -81,16 +88,9 @@ void processGenomes(
 
     const std::string first_fragment = fragments[rand() % fragments.size()]->data_;
     const std::string second_fragment = fragments[rand() % fragments.size()]->data_;
-    // int64_t align_score = alignment::Align(first_fragment.c_str(), 
-    //                                        first_fragment.size(),
-    //                                        second_fragment.c_str(),
-    //                                        second_fragment.size(),
-    //                                        alignment::kGlobal,
-    //                                        1,1,1);
 
-    //Testiranje alignments
-    unsigned int first_len = 10;
-    unsigned int second_len = 10;
+    unsigned int first_len = first_fragment.size();
+    unsigned int second_len = second_fragment.size();
 
     std::cout << "\nAligning two random sequences: \n";
     std::cout << "Target sequence:\n";
@@ -104,30 +104,35 @@ void processGenomes(
     std::cout << "\n";
     std::string cigar;
     unsigned int target_begin;
-    int64_t align_score = alignment::Align(first_fragment.c_str(), 
+
+    int64_t align_score = alignment::Align(first_fragment.c_str(),
                                            first_len,
                                            second_fragment.c_str(),
                                            second_len,
-                                           alignment::kLocal,
-                                           1,-1,-1, &cigar, &target_begin);
-    std::cout << "Local Align result: " << align_score << std::endl;
+                                           (alignment::AlignmentType)algorithm,
+                                           match_cost,
+                                           mismatch_cost,
+                                           gap_cost,
+                                           &cigar,
+                                           &target_begin);
+    std::cout << "Align result: " << align_score << std::endl;
     std::cout << "Cigar str: " << cigar << std::endl;
     std::cout << "Target begin: " << target_begin << std::endl;
-
 }
 
 /* Modificiran primjer https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html */
 /* Pojasnjenje primjera https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Options.html */
- 
-static int help_flag = 0;     /* Flag set by â€˜--helpâ€™.    */
-static int version_flag = 0;  /* Flag set by â€˜--versionâ€™. */
 
 const std::string HELP_MESSAGE = "blonde_mapper usage: \n\n"
                                  "flags: \n"
                                  "-h or --help     prints help message \n"
-                                 "-v or --version  prints version      \n\n"
-                                 "blonde_mapper takes two filenames as command line arguments: \n"
-                                 "The first file will contain a reference genome in FASTA format,\n" 
+                                 "-v or --version  prints version      \n"
+                                 "-a <type>        sets the alignment type. 0 for local (default), 1 for global, 2 for semi-global \n"
+                                 "-m <X>           sets the match cost to X. default is 1 \n"
+                                 "-n <X>           sets the mismatch cost to X. default is 1 \n"
+                                 "-g <X>           sets the gap cost to X. default is 1 \n"
+                                 "\nblonde_mapper takes two filenames as command line arguments: \n"
+                                 "The first file will contain a reference genome in FASTA format,\n"
                                  "while the second file will contain a set of fragments in either\n"
                                  "FASTA or FASTQ format.\n\n";
 }
@@ -136,19 +141,23 @@ int main (int argc, char **argv) {
     using namespace blonde;
     srand (time(NULL)); /* initialize random seed: */
     int c;              /* result variable for getopt_long function */
-    
+
     while (1) {
         static struct option long_options[] =
             {
-            /* These options set a flag. */
-            {"help",    no_argument, &help_flag,    1},
-            {"version", no_argument, &version_flag, 1},
-            {0, 0, 0, 0}
+                /* These options set a flag. */
+                {"help",    no_argument, &help_flag,    1},
+                {"version", no_argument, &version_flag, 1},
+                {"algorithm", required_argument, &algorithm, 1},
+                {"match", required_argument, &match_cost, 1},
+                {"mismatch", required_argument, &mismatch_cost, 1},
+                {"gap", required_argument, &gap_cost, 1},
+                {0, 0, 0, 0}
             };
         /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "hv",
+        c = getopt_long(argc, argv, "hva:m:n:g:",
                         long_options, &option_index);
 
         /* Detect the end of the options. */
@@ -165,6 +174,22 @@ int main (int argc, char **argv) {
 
         case 'v':
             version_flag = 1;
+            break;
+
+        case 'a':
+            algorithm = std::stoi(optarg);
+            break;
+
+        case 'm':
+            match_cost = std::stoi(optarg);
+            break;
+
+        case 'n':
+            mismatch_cost = -std::stoi(optarg);
+            break;
+
+        case 'g':
+            gap_cost = -std::stoi(optarg);
             break;
 
         case '?':
@@ -189,7 +214,7 @@ int main (int argc, char **argv) {
             processGenomes(genomes, fragments);
         } catch (std::invalid_argument e) {
             auto fragment_parser = bioparser::Parser<SequenceFastq>::Create<bioparser::FastqParser>(argv[optind + 1]);
-            
+
             // parse in chunks
             std::vector<std::unique_ptr<Sequence>> fragments;
             std::uint32_t chunk_size = 500 * 1024 * 1024;  // 500 MB
