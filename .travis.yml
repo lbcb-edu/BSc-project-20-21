@@ -31,11 +31,11 @@ matrix:
 
     - os: osx
       compiler: clang
-      osx_image: xcode9.4
+      osx_image: xcode10.1
 
     - os: osx
       compiler: gcc
-      osx_image: xcode10.1
+      osx_image: xcode9.4
 
 before_install:
   - eval "${MATRIX_EVAL}"
@@ -81,7 +81,6 @@ script:
     fi
   - mkdir build
   - cd build
-  - ls ../src
   - sudo cmake ../src -Dalignment_build_tests=ON -Dbuild_mapper=OFF
   - sudo cmake --build .
   - ./pink_alignment_test
