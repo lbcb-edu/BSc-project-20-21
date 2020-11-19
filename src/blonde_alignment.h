@@ -118,7 +118,7 @@ void initAlignmentTable(std::vector<std::vector<Cell>>& table, int init_penalty,
     }
 }
 
-void calcAlignPathCigar(
+void calcBacktrackPath(
     const std::vector<std::vector<Cell>> table,
     int mismatch,
     std::string& cigar_tmp,
@@ -128,21 +128,21 @@ void calcAlignPathCigar(
         switch (table[i][j].direction_) {
         case kDiagonal:
             if(table[i-1][j-1].score_ + mismatch == table[i][j].score_) {
-                cigar_tmp = "X" + cigar_tmp;
+                cigar_tmp += "X";
             } else {
-                cigar_tmp = "=" + cigar_tmp;
+                cigar_tmp += "=";
             }
             i--;
             j--;
             break;
 
         case kUp:
-            cigar_tmp = "I" + cigar_tmp;
+            cigar_tmp += "I";
             i--;
             break;
 
         case kLeft:
-            cigar_tmp = "D" + cigar_tmp;
+            cigar_tmp += "D";
             j--;
             break;
 
@@ -152,7 +152,8 @@ void calcAlignPathCigar(
     }
 }
 
-void compressCigar(std::string& uncompressed_cigar, std::string& cigar_result) {
+void calcCigar(std::string& uncompressed_cigar, std::string& cigar_result) {
+    std::reverse(uncompressed_cigar.begin(), uncompressed_cigar.end());
     cigar_result = "";
     char letter = uncompressed_cigar[0];
     int cnt = 1;
@@ -209,14 +210,14 @@ int Align(
             int j = max_indx_col;
             std::string cigar_tmp = "";
             for(int k = i + 1; k < query_len + 1; k++) {
-                cigar_tmp = "S" + cigar_tmp;
+                cigar_tmp += "S";
             }
-            calcAlignPathCigar(table, mismatch, cigar_tmp, i, j);
+            calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
             for(int k = i; k > 0; k--) {
-                cigar_tmp = "S" + cigar_tmp;
+                cigar_tmp += "S";
             }
             target_begin_result = j;
-            compressCigar(cigar_tmp, cigar_result);
+            calcCigar(cigar_tmp, cigar_result);
 
         }
         align_score = maximum;
@@ -228,8 +229,8 @@ int Align(
             int i = query_len;
             int j = target_len;
             std::string cigar_tmp = "";
-            calcAlignPathCigar(table, mismatch, cigar_tmp, i, j);
-            compressCigar(cigar_tmp, cigar_result);
+            calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
+            calcCigar(cigar_tmp, cigar_result);
         }
         target_begin_result = 0;
         align_score = table[query_len][target_len].score_;
@@ -261,11 +262,11 @@ int Align(
             int j = max_indx_col;
             std::string cigar_tmp = "";
             for(int k = i + 1; k < row_cnt; k++) {
-                cigar_tmp = "I" + cigar_tmp;
+                cigar_tmp += "I";
             }
-            calcAlignPathCigar(table, mismatch, cigar_tmp, i, j);
+            calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
             target_begin_result = j;
-            compressCigar(cigar_tmp, cigar_result);
+            calcCigar(cigar_tmp, cigar_result);
         }
         align_score = maximum;
         break;
