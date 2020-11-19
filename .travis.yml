@@ -2,7 +2,7 @@ language: cpp
 
 matrix:
   include:
-  # clang
+  # clang linux
     - os: linux
       compiler: clang
       env:
@@ -17,7 +17,7 @@ matrix:
             - cmake
             - clang-8
             - libstdc++-8-dev
-  # gcc
+  # gcc linux
     - os: linux
       compiler: gcc
       env:
@@ -30,8 +30,15 @@ matrix:
           packages:
             - cmake
             - g++-7
-  
-
+    # clang osx
+    - os: osx
+      compiler: clang
+      osx_image: xcode12
+    # gcc osx
+    - os: osx
+      compiler: gcc
+      osx_image: xcode12
+      
 before_install:
   - git clone https://github.com/google/googletest
   - cd googletest
@@ -46,7 +53,7 @@ before_install:
 script:
   - mkdir build
   - cd build
-  - cmake .
+  - cmake ..
   - make
   - ./blonde_mapper_test
 
