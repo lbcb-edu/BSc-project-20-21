@@ -28,6 +28,7 @@ matrix:
       addons:
         apt:
           sources:
+            - llvm-toolchain-xenial-8
             - ubuntu-toolchain-r-test
           packages:
             - cmake
