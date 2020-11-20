@@ -6,6 +6,7 @@
 #include <getopt.h>
 #include <vector>
 #include <time.h>
+#include <algorithm>
 
 namespace blonde {
 namespace alignment {

@@ -1,0 +1,61 @@
+language: cpp
+
+matrix:
+  include:
+  # clang linux
+    - os: linux
+      compiler: clang
+      env:
+        - CC="clang-8"
+        - CXX="clang++-8"
+        - CXXFLAGS="-stdlib=libc++"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - cmake
+            - clang-8
+            - libstdc++-8-dev
+  # gcc linux
+    - os: linux
+      compiler: gcc
+      env:
+        -CC="gcc-7"
+        -CXX="g++-7"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - cmake
+            - g++-7
+    # clang osx
+    - os: osx
+      compiler: clang
+      osx_image: xcode12
+    # gcc osx
+    - os: osx
+      compiler: gcc
+      osx_image: xcode12
+      
+before_install:
+  - git clone https://github.com/google/googletest
+  - cd googletest
+  - mkdir build
+  - cd build
+  - cmake .
+  - make
+  - sudo make install
+  - cd ..
+  - cd ..
+
+script:
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make
+  - ./blonde_mapper_test
+
+  after_success:
+  # add badge?
