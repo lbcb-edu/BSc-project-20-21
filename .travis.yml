@@ -46,7 +46,7 @@ before_install:
   - cd build
   - cmake .
   - make
-  - sudo make install
+  - make install
   - cd ..
   - cd ..
 
@@ -55,7 +55,7 @@ script:
   - cd build
   - cmake ..
   - make
-  - ./blonde_mapper_test
+  - ./bin/blonde_mapper_test
 
-  after_success:
-  # add badge?
+#after_success:
+  # add badge? or automatically?
