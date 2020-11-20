@@ -5,6 +5,7 @@ matrix:
   # clang linux
     - os: linux
       compiler: clang
+      sudo: required
       env:
         - CC="clang-8"
         - CXX="clang++-8"
@@ -20,9 +21,10 @@ matrix:
   # gcc linux
     - os: linux
       compiler: gcc
+      sudo: required
       env:
-        -CC="gcc-7"
-        -CXX="g++-7"
+        - CC="gcc-7"
+        - CXX="g++-7"
       addons:
         apt:
           sources:
@@ -44,9 +46,8 @@ before_install:
   - cd googletest
   - mkdir build
   - cd build
-  - cmake .
-  - make
-  - make install
+  - cmake ..
+  - sudo make install
   - cd ..
   - cd ..
 
