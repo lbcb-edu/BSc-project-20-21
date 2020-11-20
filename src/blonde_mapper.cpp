@@ -95,28 +95,24 @@ void processGenomes(
         }
     }
 
-    const std::string first_fragment = short_fragments[rand() % short_fragments.size()].data_;
-    const std::string second_fragment = short_fragments[rand() % short_fragments.size()].data_;
+    const Sequence first_fragment = short_fragments[rand() % short_fragments.size()];
+    const Sequence second_fragment = short_fragments[rand() % short_fragments.size()];
 
-    unsigned int first_len = first_fragment.size();
-    unsigned int second_len = second_fragment.size();
+    unsigned int first_len = first_fragment.data_.size();
+    unsigned int second_len = second_fragment.data_.size();
 
     std::cout << "\nAligning two random sequences: \n";
     std::cout << "Target sequence:\n";
-    for(int i = 0; i < second_len; i++) {
-        std::cout << second_fragment[i];
-    }
-    std::cout << "\nQuery Sequence:\n";
-    for(int i = 0; i < first_len; i++) {
-        std::cout << first_fragment[i];
-    }
-    std::cout << "\n";
+    std::cout << second_fragment.name_ << "\n"; 
+    std::cout << "Query Sequence:\n";
+    std::cout << first_fragment.name_ << "\n";
+
     std::string cigar;
     unsigned int target_begin;
 
-    int64_t align_score = alignment::Align(first_fragment.c_str(),
+    int64_t align_score = alignment::Align(first_fragment.data_.c_str(),
                                            first_len,
-                                           second_fragment.c_str(),
+                                           second_fragment.data_.c_str(),
                                            second_len,
                                            (alignment::AlignmentType)algorithm,
                                            match_cost,
