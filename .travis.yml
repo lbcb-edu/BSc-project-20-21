@@ -18,6 +18,7 @@ matrix:
             - cmake
             - clang-8
             - libstdc++-8-dev
+            - libstdc++abi-8-dev
   # gcc linux
     - os: linux
       compiler: gcc
