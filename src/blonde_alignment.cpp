@@ -61,17 +61,9 @@ void initAlignmentTable(std::vector<std::vector<Cell>>& table, int init_penalty,
     if (type == kLocal || type == kSemiGlobal) init_penalty = 0;
     SrcDirection top_row_direction = kNone;
     SrcDirection first_col_direction = kNone;
-    switch(type) {
-    case kGlobal:
+    if (type == kGlobal) {
         top_row_direction = kLeft;
         first_col_direction = kUp;
-        break;
-
-    case kSemiGlobal:
-        break;
-
-    case kLocal:
-        break;
     }
 
     for (int i = 1; i < num_of_rows; i++) {
@@ -159,15 +151,13 @@ int Align(
     CellComputer computer = CellComputer(query, query_len, target, target_len, table, match, mismatch, gap);
     computer.computeAllCells(type);
 
-    int align_score;
-    int target_begin_result;
-    std::string cigar_result = "";
+    int maximum, max_indx_row, max_indx_col;
     switch (type) {
-    case kLocal: {
+    case kLocal: 
         //Find Maximum in whole table
-        int maximum = table[0][0].score_;
-        int max_indx_row = 0;
-        int max_indx_col = 0;
+        maximum = table[0][0].score_;
+        max_indx_row = 0;
+        max_indx_col = 0;
         for (int i = 0; i < row_cnt; i++) {
             for (int j = 0; j < col_cnt; j++) {
                 if (table[i][j].score_ >= maximum) {
@@ -177,37 +167,19 @@ int Align(
                 }
             }
         }
-        if (cigar || target_begin) {
-            int i = max_indx_row;
-            int j = max_indx_col;
-            std::string cigar_tmp = "";
-            calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
-            target_begin_result = j;
-            calcCigar(cigar_tmp, cigar_result);
-
-        }
-        align_score = maximum;
         break;
-    }
 
-    case kGlobal: {
-        if (cigar) {
-            int i = query_len;
-            int j = target_len;
-            std::string cigar_tmp = "";
-            calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
-            calcCigar(cigar_tmp, cigar_result);
-        }
-        target_begin_result = 0;
-        align_score = table[query_len][target_len].score_;
+    case kGlobal:
+        max_indx_row = query_len;
+        max_indx_col = target_len;
+        maximum = table[query_len][target_len].score_;
         break;
-    }
 
-    case kSemiGlobal: {
+    case kSemiGlobal:
         //Find Maximum in last row or column
-        int maximum = table[0][target_len].score_;
-        int max_indx_row = 0;
-        int max_indx_col = target_len;
+        maximum = table[0][target_len].score_;
+        max_indx_row = 0;
+        max_indx_col = target_len;
         for (int i = 0; i < row_cnt; i++) {
             if (table[i][target_len].score_ >= maximum) {
                 maximum = table[i][target_len].score_;
@@ -222,27 +194,22 @@ int Align(
                 max_indx_col = i;
             }
         }
-
-        if(cigar || target_begin) {
-            int i = max_indx_row;
-            int j = max_indx_col;
-            std::string cigar_tmp = "";
-            calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
-            target_begin_result = j;
-            calcCigar(cigar_tmp, cigar_result);
-        }
-        align_score = maximum;
         break;
-    }
 
     default:
+        throw "Undefined type of alignment";
         break;
     }
 
-    //Rezultati
-    if (cigar) *cigar = cigar_result;
-    if (target_begin) *target_begin = target_begin_result;
-    return align_score;
+    if (cigar || target_begin) {
+        int i = max_indx_row;
+        int j = max_indx_col;
+        std::string cigar_tmp = "";
+        calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
+        if (target_begin) *target_begin = j;
+        if (cigar) calcCigar(cigar_tmp, *cigar);
+    }
+    return maximum;
 }
 
 }
