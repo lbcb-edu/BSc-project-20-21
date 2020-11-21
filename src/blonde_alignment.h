@@ -102,7 +102,6 @@ void initAlignmentTable(std::vector<std::vector<Cell>>& table, int init_penalty,
         break;
 
     case kSemiGlobal:
-        first_col_direction = kUp;
         break;
 
     case kLocal:
@@ -210,7 +209,7 @@ int Align(
             int i = max_indx_row;
             int j = max_indx_col;
             std::string cigar_tmp = "";
-            for(int k = i + 1; k < query_len + 1; k++) {
+            for(int k = i + 1; k < row_cnt; k++) {
                 cigar_tmp += "S";
             }
             calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
@@ -244,14 +243,14 @@ int Align(
         int max_indx_row = 0;
         int max_indx_col = target_len;
         for (int i = 0; i < row_cnt; i++) {
-            if (table[i][target_len].score_ > maximum) {
+            if (table[i][target_len].score_ >= maximum) {
                 maximum = table[i][target_len].score_;
                 max_indx_row = i;
                 max_indx_col = target_len;
             }
         }
         for (int i = 0; i < col_cnt; i++) {
-            if (table[query_len][i].score_ > maximum) {
+            if (table[query_len][i].score_ >= maximum) {
                 maximum = table[query_len][i].score_;
                 max_indx_row = query_len;
                 max_indx_col = i;
@@ -263,9 +262,12 @@ int Align(
             int j = max_indx_col;
             std::string cigar_tmp = "";
             for(int k = i + 1; k < row_cnt; k++) {
-                cigar_tmp += "I";
+                cigar_tmp += "S";
             }
             calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
+            for(int k = i; k > 0; k--) {
+                cigar_tmp += "S";
+            }
             target_begin_result = j;
             calcCigar(cigar_tmp, cigar_result);
         }

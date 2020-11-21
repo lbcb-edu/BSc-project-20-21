@@ -36,6 +36,6 @@ TEST(BlondeAlignmentTests, Local) {
 
 TEST(BlondeAlignmentTests, SemiGlobal) {
     blonde::alignment::AlignmentType semi = blonde::alignment::AlignmentType::kSemiGlobal;
-    testAlignmentScenario("AGTCTTTGAT", "GATTAGA", semi, 3, "3=4I", 7);
-    testAlignmentScenario("AGTAGT", "TAGA", semi, 2, "3=1D1I", 2);
+    testAlignmentScenario("AGTCTTTGAT", "GATTAGA", semi, 3, "3=4S", 7);
+    testAlignmentScenario("AGTAGT", "TAGA", semi, 2, "3=1X", 2);
 }
