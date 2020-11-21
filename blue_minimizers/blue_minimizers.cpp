@@ -26,14 +26,97 @@ struct KmerHashFunction {
   }
 };
 
-// TODO: reverse complement, start/end minimizers
+
+//minimizer anchored to the start of the sequence
+void StartMinimizer(const char* sequence,  
+                    unsigned int sequence_len,
+                    unsigned int kmer_len,
+                    unsigned int window_len,
+                    std::unordered_set<blue::Kmer, KmerHashFunction> &minimizers) {
+
+  unsigned int pop_front_mask = 
+      (1 << (2 * kmer_len - 2)) - 1;  // 0 for the first kmer char, 1 for others
+  
+  unsigned int first_kmer = 0;
+  
+  int i;
+  for (i = 0; i < kmer_len; i++)
+      first_kmer = (first_kmer << 2) | Encode(sequence[i], i % 2 == 0);
+  
+  int u = window_len-1;
+
+  blue::Kmer current;
+  std::deque<blue::Kmer> window;
+
+  current = {first_kmer, 0, true};
+  window.push_back(current);
+  auto& [kmer, pos, original] = current;
+
+  minimizers.insert(window.front()); //add the first kmer to the list of minimizers
+
+  for (; i < u + kmer_len - 1; i++) {
+    // create kmer
+    kmer &= pop_front_mask;                                // delete first char
+    kmer = (kmer << 2) | Encode(sequence[i], i % 2 == 0);  // add new char
+    pos++;
+
+    while (!window.empty() && current < window.back()) window.pop_back();
+    window.push_back(current);
+    minimizers.insert(window.front());
+  }
+}
+
+
+//minimizer anchored to the end of the sequence
+void EndMinimizer(const char* sequence,
+                  unsigned int sequence_len,
+                  unsigned int kmer_len,
+                  unsigned int window_len,
+                  std::unordered_set<blue::Kmer, KmerHashFunction> &minimizers) {
+
+  unsigned int first_kmer =  0;
+  
+  int i;
+  for (i = sequence_len-1; i > sequence_len-1 - kmer_len; i--)
+      first_kmer = (first_kmer >> 2) | (Encode(sequence[i], i % 2 == 0) << 4);
+
+  int u = window_len-1;
+  
+  blue::Kmer current;
+  std::deque<blue::Kmer> window;
+
+  current = {first_kmer, sequence_len - kmer_len, true};
+  window.push_back(current);
+  auto& [kmer, pos, original] = current;
+
+  minimizers.insert(window.front()); //add the last kmer to the list of minimizers
+
+  for (; i > sequence_len - kmer_len - u; i--) {
+    // create kmer
+    kmer = (kmer >> 2) | (Encode(sequence[i], i % 2 == 0) << 4);  // add new char
+    pos--;
+
+    while (!window.empty() && current < window.back()) window.pop_back();
+    window.push_back(current);
+    minimizers.insert(window.front());
+  }
+}
+
+
+// TODO: reverse complement
 std::vector<blue::Kmer> blue::Minimize(const char* sequence,
                                        unsigned int sequence_len,
                                        unsigned int kmer_len,
                                        unsigned int window_len) {
+
   std::unordered_set<blue::Kmer, KmerHashFunction> minimizers;
-  unsigned int pop_front_mask =
+
+  StartMinimizer(sequence, sequence_len, kmer_len, window_len, minimizers);
+  EndMinimizer(sequence, sequence_len, kmer_len, window_len, minimizers);
+
+  unsigned int pop_front_mask = 
       (1 << (2 * kmer_len - 2)) - 1;  // 0 for the first kmer char, 1 for others
+
   blue::Kmer current;
   std::deque<blue::Kmer> window;
   unsigned int first_kmer = 0;
