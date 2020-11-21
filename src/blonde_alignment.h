@@ -124,6 +124,9 @@ void calcBacktrackPath(
     std::string& cigar_tmp,
     int& i, int& j) {
 
+    for(int k = i + 1; k < table.size(); k++) {
+        cigar_tmp += "S";
+    }
     while (table[i][j].direction_ != kNone) {
         switch (table[i][j].direction_) {
         case kDiagonal:
@@ -149,6 +152,9 @@ void calcBacktrackPath(
         case kNone:
             break;
         }
+    }
+    for(int k = i; k > 0; k--) {
+        cigar_tmp += "S";
     }
 }
 
@@ -209,13 +215,7 @@ int Align(
             int i = max_indx_row;
             int j = max_indx_col;
             std::string cigar_tmp = "";
-            for(int k = i + 1; k < row_cnt; k++) {
-                cigar_tmp += "S";
-            }
             calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
-            for(int k = i; k > 0; k--) {
-                cigar_tmp += "S";
-            }
             target_begin_result = j;
             calcCigar(cigar_tmp, cigar_result);
 
@@ -261,13 +261,7 @@ int Align(
             int i = max_indx_row;
             int j = max_indx_col;
             std::string cigar_tmp = "";
-            for(int k = i + 1; k < row_cnt; k++) {
-                cigar_tmp += "S";
-            }
             calcBacktrackPath(table, mismatch, cigar_tmp, i, j);
-            for(int k = i; k > 0; k--) {
-                cigar_tmp += "S";
-            }
             target_begin_result = j;
             calcCigar(cigar_tmp, cigar_result);
         }
