@@ -87,7 +87,7 @@ std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
     unsigned int window_len);
 ```
 
-where the return value is the list of found minimizers, their positions in the sequence and their origin (whether they are located on the original strand or the reverse complement), while parameters `kmer_len` and `window_len` are self explanatory (check the provided paper).
+where the return value is the list of found minimizers (first `unsigned int` of tuple), their positions in the sequence (second `unsigned int` of tuple) and their origin (whether they are located on the original strand (`true` in tuple) or the reverse complement (`false` in tuple), while parameters `kmer_len` and `window_len` are self explanatory (check the provided paper).
 
 Once the library is finished, it has to be used to find minimizers of all sequences in the first input file, and then in the second. The mapper has to print the number of distinct minimizers, fraction of singletons, and the number of occurrences of the most frequent minimizer when the top `f` frequent minimizers are **not** taken in account (add optional arguments for setting `k`, `w` and `f` to the mapper). Default values for `(k, w, f)` should be `(15, 5, 0.001)`.
 
