@@ -74,6 +74,23 @@ A good read for this part of the project is the second chapter of the Bioinforma
 
 The alignment library, and all other code components to follow, should have a set of unit tests (using googletest) which are automatically compiled and run after each commit to the team's main branch (via Travis CI). Googletest should be included to the project via CMake command `find_package(GTest REQUIRED)`, and not as a submodule. Travis CI machines do not have Googletest preinstalled, so you have to manually do it as part of the `before_install:` clause in `.travis.yml` file. In addition, configure Travis to run unit tests on Ubuntu and macOS, with both gcc and clang compilers. A success/failure [badge](https://docs.travis-ci.com/user/status-images/) for the integration should be placed in this README.
 
+## Minimizers
+
+The next step is to implement a library that for any DNA/RNA sequence returns its set of minimizers, which are specific substrings of defined length *k* (often called *k*-mers). As alignment algorithms have quadratic time complexity, *k*-mer indexing is often used for fast detection of similar regions between two sequences (or one vs many) prior the alignment. However, collecting all *k*-mers can have a big impact on computational resources (both memory and execution time), especially choosing those that are quite frequent in the target sequence set. Considering only a subset of *k*-mers can alleviate the whole process while keeping reasonable levels of sensitivity. One such method is to use lexicographically smallest *k*-mers called minimizers which are described [here](https://academic.oup.com/bioinformatics/article/20/18/3363/202143).
+
+The library should be named in a form of `<team name>_minimizers` (e.g. `blonde_minimizers`) and should share its namespace with the alignment library (e.g. `blonde`). Other constraints apply as well, it has to be created with the same `CMakeLists.txt`, it has to be linked to the mapper, and have its own unit tests which are run via TravisCI. The implementation has no requirements (it can be just one function or through a class) but the function for obtaining minimizers should have the following prototype:
+
+```cpp
+std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
+    const char* sequence, unsigned int sequence_len,
+    unsigned int kmer_len,
+    unsigned int window_len);
+```
+
+where the return value is the list of found minimizers, their positions in the sequence and their origin (whether they are located on the original strand or the reverse complement), while parameters `kmer_len` and `window_len` are self explanatory (check the provided paper).
+
+Once the library is finished, it has to be used to find minimizers of all sequences in the first input file, and then in the second. The mapper has to print the number of distinct minimizers, fraction of singletons, and the number of occurrences of the most frequent minimizer when the top `f` frequent minimizers are **not** taken in account (add optional arguments for setting `k`, `w` and `f` to the mapper). Default values for `(k, w, f)` should be `(15, 5, 0.001)`.
+
 ## Disclaimer
 
 Laboratory for Bioinformatics and Computational Biology cannot be held responsible for any copyright infringement caused by actions of students contributing to any of its repositories. Any case of copyright infringement will be promptly removed from the affected repositories and reported to appropriate faculty organs.
