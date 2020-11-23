@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
 
     //std::cout << "evo me1" << std::endl;
 
-    std::cout << brown::bzvz();
+    //std::cout << brown::bzvz();
 
     int c = getopt_long(argc, argv, "hv", long_options, 0);
     if (c != -1) {

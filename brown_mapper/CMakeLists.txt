@@ -8,7 +8,7 @@ add_executable(brown_mapper brown_mapper.cpp)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${PROJECT_BINARY_DIR}")
 
 if (NOT TARGET bioparser)

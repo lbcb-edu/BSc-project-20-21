@@ -6,9 +6,9 @@ namespace brown {
 
     //enum AlignmentType {GLOBAL, LOCAL, SEMIGLOBAL};
 
-    int bzvz() {
-        return 1;
-    }
+    //int bzvz() {
+    //    return 1;
+    //}
 
     int Align(
         const char* query, unsigned int query_len,
