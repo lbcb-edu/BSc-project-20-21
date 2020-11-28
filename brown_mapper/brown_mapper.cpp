@@ -186,11 +186,19 @@ int main(int argc, char* argv[]) {
         std::string cigar;
         unsigned int target_begin;
         srand(time(0));
-        int fragment_postion = rand() % fragments.size();
+        int fragment_postion1, fragment_postion2;
+        do {
+            fragment_postion1 = rand() % fragments.size();
+        } while (referenceGenom[fragment_postion1]->sequenceSequence.length() < 5000);
 
-        /*int result = brown::Align(referenceGenom[0]->sequenceSequence.c_str(), referenceGenom[0]->sequenceSequence.length(),
-                                    fragments[fragment_postion]->sequenceSequence.c_str(), 
-                                    referenceGenom[fragment_postion]->sequenceSequence.length(),
+        do {
+            fragment_postion2 = rand() % fragments.size();
+        } while (referenceGenom[fragment_postion2]->sequenceSequence.length() < 5000);
+
+        /*int result = brown::Align(fragments[fragment_postion1]->sequenceSequence.c_str(), 
+                                    fragments[fragment_postion1]->sequenceSequence.length(),
+                                    fragments[fragment_postion2]->sequenceSequence.c_str(), 
+                                    fragments[fragment_postion2]->sequenceSequence.length(),
                                     type, match, mismatch, gap, &cigar, &target_begin);*/
 
         
