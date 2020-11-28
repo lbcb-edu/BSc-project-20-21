@@ -4,6 +4,8 @@
 #include "bioparser/include/bioparser/fastq_parser.hpp"
 #include "bioparser/include/bioparser/fasta_parser.hpp"
 #include "brown_alignment.hpp"
+#include <stdlib.h>
+#include <time.h>
 
 #define VERSION "v0.1"
 
@@ -82,28 +84,54 @@ void printsFragmentsStats(std::vector<std::unique_ptr<Sequence>>& fragments) {
 
 int main(int argc, char* argv[]) {
 
-    //std::cout << "evo me1" << std::endl;
+    brown::AlignmentType type;
+    int match;
+    int gap;
+    int mismatch;
 
-    //std::cout << brown::bzvz();
+    bool match_flag;
+    bool mismatch_flag;
+    bool gap_flag;
+    bool type_flag;
 
-    int c = getopt_long(argc, argv, "hv", long_options, 0);
-    if (c != -1) {
+    int c;
+    while ((c = getopt_long(argc, argv, "m:g:n:a:hv", long_options, 0)) != -1) {
         switch (c){
             case 'h' :
                 std::cerr << help << std::endl;
-                return 0;;
+                return 0;
             case 'v' :
                 std::cerr << VERSION << std::endl;
                 return 0;
+            case 'm':
+                match = atoi(optarg);
+                std::cout << "Match is : " << optarg << std::endl;
+                match_flag = true;
+                break;
+            case 'n' :
+                mismatch = atoi(optarg);
+                std::cout << "Mismatch is : " << optarg << std::endl;
+                mismatch_flag = true;
+                break;
+            case 'g' :
+                gap = atoi(optarg);
+                std::cout << "Gap is : " << optarg << std::endl;
+                gap_flag = true;
+                break;
+            case 'a' :
+                type = static_cast<brown::AlignmentType>(atoi(optarg));
+                std::cout << "Allignment type is : " << optarg << std::endl;
+                type_flag = true;
+                break;
             default:
                 return 0;
         }
     }
     //std:: cout << "evo me 2" << std::endl;
-    if (argc == 3) { //promjeni u 3
+    if (optind < argc) { //promjeni u 3
         //std::cout << "ide pravit stringove";
-        std::string file1 = argv[1];
-        std::string file2 = argv[2];
+        std::string file1 = argv[optind++];
+        std::string file2 = argv[optind];
 
         std::vector<std::unique_ptr<Sequence>> referenceGenom;
         if (file1.compare(file1.length() - 6, 6, ".fasta") == 0 ||
@@ -149,7 +177,28 @@ int main(int argc, char* argv[]) {
         
         std::cerr << fragmentLine;
         printsFragmentsStats(fragments);
+        
+        if (match_flag == false || mismatch_flag == false || gap_flag == false || type_flag == false) {
+            std::cout << "Some arguments for alignment are missing!" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        std::string cigar;
+        unsigned int target_begin;
+        srand(time(0));
+        int fragment_postion = rand() % fragments.size();
+
+        /*int result = brown::Align(referenceGenom[0]->sequenceSequence.c_str(), referenceGenom[0]->sequenceSequence.length(),
+                                    fragments[fragment_postion]->sequenceSequence.c_str(), 
+                                    referenceGenom[fragment_postion]->sequenceSequence.length(),
+                                    type, match, mismatch, gap, &cigar, &target_begin);*/
+
+        
+
     }
+
+    
+
 
     return 0;
 }
