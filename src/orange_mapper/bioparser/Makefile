@@ -48,10 +48,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = "/home/josip/Radna površina/ProjektPP"
+CMAKE_SOURCE_DIR = "/home/josip/Radna površina/mapper"
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = "/home/josip/Radna površina/ProjektPP"
+CMAKE_BINARY_DIR = "/home/josip/Radna površina/mapper"
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -80,14 +80,14 @@ edit_cache/fast: edit_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/josip/Radna površina/ProjektPP/CMakeFiles" "/home/josip/Radna površina/ProjektPP/CMakeFiles/progress.marks"
-	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/josip/Radna površina/ProjektPP/CMakeFiles" 0
+	cd "/home/josip/Radna površina/mapper" && $(CMAKE_COMMAND) -E cmake_progress_start "/home/josip/Radna površina/mapper/CMakeFiles" "/home/josip/Radna površina/mapper/bioparser/CMakeFiles/progress.marks"
+	cd "/home/josip/Radna površina/mapper" && $(MAKE) -f CMakeFiles/Makefile2 bioparser/all
+	$(CMAKE_COMMAND) -E cmake_progress_start "/home/josip/Radna površina/mapper/CMakeFiles" 0
 .PHONY : all
 
 # The main clean target
 clean:
-	$(MAKE) -f CMakeFiles/Makefile2 clean
+	cd "/home/josip/Radna površina/mapper" && $(MAKE) -f CMakeFiles/Makefile2 bioparser/clean
 .PHONY : clean
 
 # The main clean target
@@ -97,58 +97,18 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	$(MAKE) -f CMakeFiles/Makefile2 preinstall
+	cd "/home/josip/Radna površina/mapper" && $(MAKE) -f CMakeFiles/Makefile2 bioparser/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	$(MAKE) -f CMakeFiles/Makefile2 preinstall
+	cd "/home/josip/Radna površina/mapper" && $(MAKE) -f CMakeFiles/Makefile2 bioparser/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	$(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	cd "/home/josip/Radna površina/mapper" && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
-
-#=============================================================================
-# Target rules for targets named orange_mapper
-
-# Build rule for target.
-orange_mapper: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 orange_mapper
-.PHONY : orange_mapper
-
-# fast build rule for target.
-orange_mapper/fast:
-	$(MAKE) -f CMakeFiles/orange_mapper.dir/build.make CMakeFiles/orange_mapper.dir/build
-.PHONY : orange_mapper/fast
-
-orange_mapper.o: orange_mapper.cpp.o
-
-.PHONY : orange_mapper.o
-
-# target to build an object file
-orange_mapper.cpp.o:
-	$(MAKE) -f CMakeFiles/orange_mapper.dir/build.make CMakeFiles/orange_mapper.dir/orange_mapper.cpp.o
-.PHONY : orange_mapper.cpp.o
-
-orange_mapper.i: orange_mapper.cpp.i
-
-.PHONY : orange_mapper.i
-
-# target to preprocess a source file
-orange_mapper.cpp.i:
-	$(MAKE) -f CMakeFiles/orange_mapper.dir/build.make CMakeFiles/orange_mapper.dir/orange_mapper.cpp.i
-.PHONY : orange_mapper.cpp.i
-
-orange_mapper.s: orange_mapper.cpp.s
-
-.PHONY : orange_mapper.s
-
-# target to generate assembly for a file
-orange_mapper.cpp.s:
-	$(MAKE) -f CMakeFiles/orange_mapper.dir/build.make CMakeFiles/orange_mapper.dir/orange_mapper.cpp.s
-.PHONY : orange_mapper.cpp.s
 
 # Help Target
 help:
@@ -157,11 +117,7 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... rebuild_cache"
-	@echo "... orange_mapper"
 	@echo "... edit_cache"
-	@echo "... orange_mapper.o"
-	@echo "... orange_mapper.i"
-	@echo "... orange_mapper.s"
 .PHONY : help
 
 
@@ -173,6 +129,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	$(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	cd "/home/josip/Radna površina/mapper" && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 
