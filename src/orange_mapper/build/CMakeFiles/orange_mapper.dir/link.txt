@@ -1,0 +1,1 @@
+/usr/bin/c++     CMakeFiles/orange_mapper.dir/orange_mapper.cpp.o  -o orange_mapper /usr/lib/x86_64-linux-gnu/libz.so 

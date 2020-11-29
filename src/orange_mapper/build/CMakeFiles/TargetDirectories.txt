@@ -1,0 +1,5 @@
+/home/josip/Radna površina/ProjektPP/CMakeFiles/rebuild_cache.dir
+/home/josip/Radna površina/ProjektPP/CMakeFiles/orange_mapper.dir
+/home/josip/Radna površina/ProjektPP/CMakeFiles/edit_cache.dir
+/home/josip/Radna površina/ProjektPP/bioparser/CMakeFiles/rebuild_cache.dir
+/home/josip/Radna površina/ProjektPP/bioparser/CMakeFiles/edit_cache.dir
