@@ -5,7 +5,7 @@
 
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
-#include "bioparser/parser.hpp"
+
 using namespace std;
 #define VERSION "v0.1.0"
 
