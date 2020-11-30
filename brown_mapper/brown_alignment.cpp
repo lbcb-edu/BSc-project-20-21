@@ -20,8 +20,11 @@ namespace brown {
         std::string* cigar = nullptr,
         unsigned int* target_begin = nullptr) {
             
+            int resultRow = 0;
+            int resultColumn = 0;
+            int m[query_len + 1][target_len + 1];
+
             if(type == GLOBAL) {
-                int m[query_len + 1][target_len + 1];
                 m[0][0]=0;
                 for (int i = 1; i < query_len + 1; i++) {
                     m[i][0]=i * gap;
@@ -36,13 +39,15 @@ namespace brown {
                         else matchCost=m[i-1][j-1] + mismatch;
                         m[i][j]=std::max(std::max(matchCost, m[i][j-1] + gap), m[i-1][j] + gap);
                     }
-                return m[query_len][target_len];
+                resultRow = query_len;
+                resultColumn = target_len;
 
             }
             else if (type == LOCAL) {
                 int maxCell = 0;
-                int m[query_len + 1][target_len + 1];
                 m[0][0] = 0;
+                resultColumn = 0;
+                resultRow = 0;
                 for (int i = 1; i < query_len + 1; i++) {
                     m[i][0] = 0;
                 }
@@ -55,14 +60,30 @@ namespace brown {
                         if (query[i]==target[j]) matchCost = m[i-1][j-1]+match;
                         else matchCost=m[i-1][j-1] + mismatch;
                         m[i][j]=std::max(std::max(0, matchCost), std::max(m[i][j-1] + gap, m[i-1][j] + gap));
-                        maxCell=std::max(maxCell, m[i][j]);
+                        //maxCell=std::max(maxCell, m[i][j]);
+                        if (m[i][j] > maxCell) {
+                            maxCell = m[i][j];
+                            resultRow = i;
+                            resultColumn = j;
+                        }
                     }
-                    return maxCell;
             }
             else if (type == SEMIGLOBAL){
                 //TODO
-            }   
-            else std::cerr << "Invalid AlignmentType" << std::endl;
-            exit(1);
+            }
+            else {
+                std::cerr << "Invalid AlignmentType" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+
+            if (target_begin != nullptr) {
+                //TODO
+            }
+
+            if (cigar != nullptr) {
+                //TODO
+            }
+
+            return m[resultRow][resultColumn];
     }
 }
