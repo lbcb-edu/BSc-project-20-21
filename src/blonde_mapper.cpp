@@ -7,6 +7,7 @@
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
 #include "blonde_alignment.h"
+#include "blonde_minimizers.h"
 
 #define VERSION "v0.1.1"
 
@@ -73,8 +74,8 @@ void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments,
 
 constexpr int LENGTH_LIMIT = 5000;
 
-static int help_flag = 0;     /* Flag set by ‘--help’.    */
-static int version_flag = 0;  /* Flag set by ‘--version’. */
+static int help_flag = 0;     /* Flag set by ï¿½--helpï¿½.    */
+static int version_flag = 0;  /* Flag set by ï¿½--versionï¿½. */
 static int algorithm = 0;
 static int match_cost = 1;
 static int mismatch_cost = -1;
@@ -231,6 +232,24 @@ int main (int argc, char **argv) {
             }
             processGenomes(genomes, fragments, true);
         }
+    }
+    
+    //Primjer minimizera
+    std::string test = "ACCTGACT";
+    unsigned int len = 8;
+    unsigned int kmer_len = 2;
+    unsigned int window_len = 6; 
+    auto result = minimizers::Minimize(test.c_str(), len, kmer_len, window_len);
+
+    std::cout << "Minimizers:\n";
+    for(minimizers::Kmer mer : result) {
+        std::cout << std::hex << std::get<0>(mer);
+        std::cout << " ";
+        std::cout << std::hex << std::get<1>(mer);
+        std::cout << " ";
+        std::cout << std::hex << std::get<2>(mer);
+        std::cout << " ";
+        std::cout << std::endl;
     }
 
     return 0;
