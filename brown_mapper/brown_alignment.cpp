@@ -23,7 +23,7 @@ namespace brown {
             int resultRow = 0;
             int resultColumn = 0;
             int m[query_len + 1][target_len + 1];
-
+            
             if(type == GLOBAL) {
                 m[0][0]=0;
                 for (int i = 1; i < query_len + 1; i++) {
@@ -38,6 +38,7 @@ namespace brown {
                         if (query[i] == target[j]) matchCost=m[i-1][j-1] + match;
                         else matchCost=m[i-1][j-1] + mismatch;
                         m[i][j]=std::max(std::max(matchCost, m[i][j-1] + gap), m[i-1][j] + gap);
+                        
                     }
                 resultRow = query_len;
                 resultColumn = target_len;
@@ -69,7 +70,27 @@ namespace brown {
                     }
             }
             else if (type == SEMIGLOBAL){
-                //TODO
+                m[0][0] = 0;
+                int maxCell = 0;
+                for (int i = 1; i < query_len + 1; i++) {
+                    m[i][0] = 0;
+                }
+                for (int j = 1; j < target_len + 1; j++) {
+                    m[0][j] = 0;
+                }
+                for (int i = 1; i < query_len + 1; i++)
+                    for (int j = 1; j < target_len + 1; j++) {
+                        int matchCost;
+                        if (query[i]==target[j]) matchCost = m[i-1][j-1]+match;
+                        else matchCost=m[i-1][j-1] + mismatch;
+                        m[i][j]=std::max(std::max(0, matchCost), std::max(m[i][j-1] + gap, m[i-1][j] + gap));
+                        //maxCell=std::max(maxCell, m[i][j]);
+                        if (m[i][j] > maxCell && (i==query_len || j==target_len)) {
+                            maxCell = m[i][j];
+                            resultRow = i;
+                            resultColumn = j;
+                        }
+                    }
             }
             else {
                 std::cerr << "Invalid AlignmentType" << std::endl;
@@ -81,7 +102,49 @@ namespace brown {
             }
 
             if (cigar != nullptr) {
-                //TODO
+                std::string cigarBeta="";
+                    while(type==GLOBAL && (resultRow != 0 && resultColumn != 0) || (type==LOCAL || type==SEMIGLOBAL) && (resultRow != 0 || resultColumn != 0)) {
+                        if(!(resultRow==0 || resultColumn==0)) {
+                            if (m[resultRow-1][resultColumn-1]+match==m[resultRow][resultColumn]) {
+                                cigarBeta+="M";
+                                resultColumn--;
+                                resultRow--;
+                            }
+                            else if (m[resultRow-1][resultColumn-1]+mismatch==m[resultRow][resultColumn]) {
+                                cigarBeta+="X";
+                                resultColumn--;
+                                resultRow--;
+                            }
+                        }
+                        else if (resultRow!=0 && m[resultRow-1][resultColumn]+gap==m[resultRow][resultColumn]) {
+                            cigarBeta+="I";
+                            resultRow--;
+                        }
+                        else if(resultColumn!=0) {
+                            cigarBeta="D";
+                            resultColumn--;
+                        }
+
+                    }
+
+                *cigar="";
+                //cigar->append(cigarBeta.substr(0,1));
+                char current=cigarBeta.at(0);
+                int counter=0;
+                while(!cigarBeta.empty()) {
+                    if(cigarBeta.at(0) == current) {
+                        counter++;
+                        cigarBeta=cigarBeta.substr(1);
+
+                    }
+                    else {
+                        cigar->append(std::string (1, current));
+                        cigar->append(std::to_string(counter));
+                        counter=0;
+                        current=cigarBeta.at(0);
+                    }
+
+                }
             }
 
             return m[resultRow][resultColumn];
