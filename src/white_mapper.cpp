@@ -4,6 +4,7 @@
 #include "../bioparser/include/bioparser/fasta_parser.hpp"
 #include "../bioparser/include/bioparser/fastq_parser.hpp"
 
+
 static int version_req;
 static int help_req;
 
