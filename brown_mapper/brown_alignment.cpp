@@ -19,7 +19,9 @@ namespace brown {
         int gap,
         std::string* cigar = nullptr,
         unsigned int* target_begin = nullptr) {
-            
+            if (target_begin != nullptr) {
+                target=target+*target_begin*sizeof(char);
+            }
             int resultRow = 0;
             int resultColumn = 0;
             int m[query_len + 1][target_len + 1];
@@ -96,10 +98,9 @@ namespace brown {
                 std::cerr << "Invalid AlignmentType" << std::endl;
                 exit(EXIT_FAILURE);
             }
-
-            if (target_begin != nullptr) {
-                //TODO
-            }
+            int returnRow=resultRow;
+            int returnColumn=resultColumn;
+            
 
             if (cigar != nullptr) {
                 std::string cigarBeta="";
@@ -138,15 +139,16 @@ namespace brown {
 
                     }
                     else {
-                        cigar->append(std::string (1, current));
                         cigar->append(std::to_string(counter));
+                        cigar->append(std::string (1, current));
                         counter=0;
                         current=cigarBeta.at(0);
                     }
-
                 }
+                cigar->append(std::to_string(counter));
+                cigar->append(std::string (1, current));
             }
 
-            return m[resultRow][resultColumn];
+            return m[returnRow][returnColumn];
     }
 }
