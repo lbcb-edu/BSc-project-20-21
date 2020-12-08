@@ -19,9 +19,7 @@ namespace brown {
         int gap,
         std::string* cigar = nullptr,
         unsigned int* target_begin = nullptr) {
-            if (target_begin != nullptr) {
-                target=target+*target_begin*sizeof(char);
-            }
+            
             int resultRow = 0;
             int resultColumn = 0;
             int m[query_len + 1][target_len + 1];
@@ -85,7 +83,7 @@ namespace brown {
                         int matchCost;
                         if (query[i]==target[j]) matchCost = m[i-1][j-1]+match;
                         else matchCost=m[i-1][j-1] + mismatch;
-                        m[i][j]=std::max(std::max(0, matchCost), std::max(m[i][j-1] + gap, m[i-1][j] + gap));
+                        m[i][j]=std::max(matchCost, std::max(m[i][j-1] + gap, m[i-1][j] + gap));
                         //maxCell=std::max(maxCell, m[i][j]);
                         if (m[i][j] > maxCell && (i==query_len || j==target_len)) {
                             maxCell = m[i][j];
@@ -101,11 +99,15 @@ namespace brown {
             int returnRow=resultRow;
             int returnColumn=resultColumn;
             
-
-            if (cigar != nullptr) {
-                std::string cigarBeta="";
-                    while(type==GLOBAL && (resultRow != 0 && resultColumn != 0) || (type==LOCAL || type==SEMIGLOBAL) && (resultRow != 0 || resultColumn != 0)) {
+            std::string cigarBeta="";
+            int targetLocal;
+            if (cigar != nullptr || target_begin !=nullptr) {
+                
+                
+                    while(type==GLOBAL && (resultRow != 0 && resultColumn != 0) || (type==LOCAL || type==SEMIGLOBAL) && (resultRow != 0 || resultColumn != 0) 
+                            || type==LOCAL && m[resultRow][resultColumn] == 0) {
                         if(!(resultRow==0 || resultColumn==0)) {
+                            if (type == LOCAL) targetLocal=resultColumn;
                             if (m[resultRow-1][resultColumn-1]+match==m[resultRow][resultColumn]) {
                                 cigarBeta+="M";
                                 resultColumn--;
@@ -125,9 +127,16 @@ namespace brown {
                             cigarBeta="D";
                             resultColumn--;
                         }
-
+                        
                     }
-
+            }
+            if(target_begin != nullptr) {
+                    if (type == GLOBAL) *target_begin = 1;
+                    else if (type == SEMIGLOBAL) *target_begin = resultColumn;
+                    else *target_begin=targetLocal;
+                    
+            }
+            if(cigar != nullptr) {
                 *cigar="";
                 //cigar->append(cigarBeta.substr(0,1));
                 char current=cigarBeta.at(0);
@@ -148,7 +157,7 @@ namespace brown {
                 cigar->append(std::to_string(counter));
                 cigar->append(std::string (1, current));
             }
-
+        
             return m[returnRow][returnColumn];
     }
 }
