@@ -39,8 +39,10 @@ namespace white {
                 mismatch(mismatch),
                 gap(gap),
                 cigar(cigar),
-                target_begin(target_begin) {}
-    
+                target_begin(target_begin),
+                Mat(query_len + 1,
+                    std::vector<Cell>(target_len + 1, {Operation::kNone, 0})) {}
+
         int NeedlemanWunsch() {
             for (int i = 1; i < query_len; i++) {
                 Mat[0][i].value = i;
@@ -212,7 +214,7 @@ namespace white {
             }
 
             if (cigar) {
-                ClippedCigarBuilder(maximalCell.first, maximalCell.second);
+               ClippedCigarBuilder(maximalCell.first, maximalCell.second);
             }
             return maxVal;
         }
@@ -265,7 +267,7 @@ namespace white {
             return final_cigar;
         }
 
-        std::string ClippedCigarBuilder(int row, int col) {
+        void ClippedCigarBuilder(int row, int col) {
             std::string starting_cigar = "";
             for (int i = row + 1; i < query_len; i++) {
                 starting_cigar = "S" + starting_cigar;
@@ -278,12 +280,7 @@ namespace white {
             *cigar = final_cigar;
         }
 
-        int Align(const char* query, unsigned int query_len, const char* target, unsigned int target_len,
-        AlignmentType type, int match, int mismatch, int gap, std::string* cigar = nullptr, unsigned int* target_begin = nullptr) {
-
-            Cell Mat[query_len + 1][target_len + 1]; //comparison matrix
-            Mat[0][0].value = 0;
-            Mat[0][0].operation = kNone;
+        int Align(AlignmentType type) {
 
             switch(type) {
                 case GLOBAL:

@@ -3,15 +3,54 @@
 #include "projectControl.h"
 #include "../bioparser/include/bioparser/fasta_parser.hpp"
 #include "../bioparser/include/bioparser/fastq_parser.hpp"
-
+#include "white_alignment.h"
 
 static int version_req;
 static int help_req;
+static int align_algorithm = 0;
+static int match_cost = 1;
+static int mismatch_cost = -1;
+static int gap_cost = -1;
 
 //gets the project version from projectControl.h
 void version_print(){
     std::cout << PROJECT_VER << std::endl;
 }
+
+//basic definition of a Sequence structure
+struct Sequence { 
+	public:
+		Sequence(
+			const char* name, std::uint32_t nameLength,
+			const char* data, std::uint32_t dataLength) {
+			this->name = name;
+			this->data = data;
+			this->dataLength = dataLength;
+			this->nameLength = nameLength;
+		}
+
+		std::string getName() {
+			return this->name;
+		}
+
+		std::string getData() {
+			return this->data;
+		}
+
+		std::uint32_t getNameLength() {
+			return this->nameLength;
+		}
+
+		std::uint32_t getDataLength() {
+			return this->dataLength;
+		}
+
+	private:
+		const char* name;
+		const char* data;
+		std::uint32_t nameLength;
+		std::uint32_t dataLength;
+	};
 
 //Checks if passed arguments are in fasta and fastq formats
 bool checkArgs(char *argv[]) {
@@ -72,19 +111,64 @@ void help_print(){
     "minimal and maximal length.\n\n";
 }
 
+int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragment_list) {
+	srand (time(NULL));
+	int query_index;
+	int target_index;
+	white::AlignmentType align_type;
+	do {
+		query_index = rand() % (size + 1);
+		target_index = rand() % (size + 1);
+	} while (fragment_list[query_index] -> getDataLength() > 5000 &&
+		fragment_list[target_index] -> getDataLength() > 5000);
+	
+	switch (align_algorithm) {
+	case 0:
+		align_type = white::AlignmentType::GLOBAL;
+		break;
+	case 1:
+		align_type = white::AlignmentType::LOCAL;
+		break;
+	case 2:
+		align_type = white::AlignmentType::SEMIGLOBAL;
+		break;
+	default:
+		break;
+	}
+
+	white::Aligner* aligner = new white::Aligner(fragment_list[query_index] -> getData().c_str(),
+		fragment_list[query_index] -> getDataLength(),
+		fragment_list[target_index] -> getData().c_str(),
+		fragment_list[target_index] -> getDataLength(),
+		match_cost, mismatch_cost, gap_cost, nullptr, nullptr);
+	
+		int align_score = aligner -> Align (align_type);
+};
+
 int main(int argc, char *argv[]){
 
-    int i;
+    int opt;
+
+	int align_algorithm = 0;
+	int match_cost = 1;
+	int mismatch_cost = -1;
+	int gap_cost = -1;
     
     static struct option long_options[] = {
             {"help", no_argument, &help_req, 1},
             {"version", no_argument, &version_req, 1},
+			{"algorithm", required_argument, nullptr, 'a'},
+			{"match_cost", required_argument, nullptr, 'm'},
+			{"mismatch_cost", required_argument, nullptr, 'n'},
+			{"gap_cost", required_argument, nullptr, 'g'},
             {0, 0, 0, 0}    
     };
+
+	
     
-    while ((i = getopt_long(argc, argv, "hv", long_options, nullptr)) != -1){
+    while ((opt = getopt_long(argc, argv, "a:m:n:g:hv", long_options, nullptr)) != -1){
         
-        switch (i)
+        switch (opt)
         {
         case 0:
             break;
@@ -98,8 +182,24 @@ int main(int argc, char *argv[]){
             break;
 
         case '?':
-            break;    
-        
+            break; 
+
+		case 'a':
+			align_algorithm = atoi(optarg);
+			break;
+
+		case 'm':
+			match_cost = atoi(optarg);
+			break;
+
+		case 'n':
+			mismatch_cost = atoi(optarg);
+			break;
+
+		case 'g':   
+			gap_cost = atoi(optarg);
+			break;
+
         default:
             abort();
         }
@@ -112,7 +212,7 @@ int main(int argc, char *argv[]){
     } else if(help_req){
         help_print();
 		return 0;
-    }
+	}
 
 	//if the input wasn't help or version flag, then it checks if we have given two arguments
 	if (argc != 3) {
@@ -126,40 +226,7 @@ int main(int argc, char *argv[]){
 		return 1;
 	}
 
-	//basic definition of a Sequence structure
-	struct Sequence { 
-	public:
-		Sequence(
-			const char* name, std::uint32_t nameLength,
-			const char* data, std::uint32_t dataLength) {
-			this->name = name;
-			this->data = data;
-			this->dataLength = dataLength;
-			this->nameLength = nameLength;
-		}
-
-		std::string getName() {
-			return this->name;
-		}
-
-		std::string getData() {
-			return this->data;
-		}
-
-		std::uint32_t getNameLength() {
-			return this->nameLength;
-		}
-
-		std::uint32_t getDataLength() {
-			return this->dataLength;
-		}
-
-	private:
-		const char* name;
-		const char* data;
-		std::uint32_t nameLength;
-		std::uint32_t dataLength;
-	};
+	
 
 	//parsing the first file
 	auto genome = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[1]);
@@ -170,7 +237,7 @@ int main(int argc, char *argv[]){
 	auto fragments = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[2]);
 	auto f = fragments->Parse(-1);
 	int f_size = (int)f.size();
-
+	
 	int sum = 0;
 
 	//names of sequences in the reference file and their lengths
@@ -203,6 +270,14 @@ int main(int argc, char *argv[]){
 	//prints the minimum and the maximum value from the fragment vector
 	std::cerr << "Minimum: " << fragmentVector.front() << "\n\n";
 	std::cerr << "Maximum: " << fragmentVector.back() << "\n\n";
+
+	std::string cigar = "lol";
+	int target_begin = 9;
+	int alignment_score = calcAlignment(f_size, f);
+
+	 std::cout << "Alignment score: " << alignment_score << '\n'
+            << "Target begin index: " << target_begin << "\n\n"
+            << "CIGAR: " << cigar << std::endl;
 
 	return 0;
 }
