@@ -13,31 +13,12 @@
 using namespace std;
 #define VERSION "v0.1.0"
 
-static int help_flag;
-static int version_flag;
-
-int calculate_score(string type, int gap, int match, int mismatch, const vector<unique_ptr<Sequence>> &fragments){
-	int index1, index2;
-	srand((unsigned)time(NULL));
-	while(1){
-		index1 = rand()%(fragments.size()) + 0;
-		if(fragments[index1]->datas.length() < 5000){
-			break;
-		}
-	}
-	while(1){
-		index2 = rand()%(fragments.size()) + 0;
-		if(fragments[index2]->datas.length() < 5000){
-			break;
-		}
-	}
-	char* query = strcpy(query, fragments[index1]->datas.c_str());
-	int query_len = fragments[index1]->datas.length();
-	char* target = strcpy(query, fragments[index2]->datas.c_str());
-	int target_len = fragments[index2]->datas.length();
-	return orange::Align(query, query_len, target, target_len, static_cast<orange::AlignmentType>(type), match, mismatch, gap, cigar, target_begin); 
-}
-
+static int help_flag = 0;
+static int version_flag = 0;
+static int alg_flag = 0;
+static int match_flag = 1;
+static int mismatch_flag = -1;
+static int gap_flag = -1;
 
 void printHelp(){
     std::cout << "\norange_mapper usage:\n"
@@ -45,14 +26,18 @@ void printHelp(){
     "./orange_mapper [FILE1][FILE2]\n\n"
     "Options :\n"
     "-h or --help\t Prints this help message\n"
-    "-v or --version\t Prints mapper version\n\n"
+    "-v or --version\t Prints mapper version\n"
+    "-a or --algorithm\t select alignment type: 0 for global(default), 1 for local, 2 for semi-global alignment\n"
+    "-m or --match\t Define match cost\n"
+    "-n or --mismatch\t Define mismatch cost\n"
+    "-g or --gap\t Define gap cost\n\n"
     "Mapper accepts two files arguments.\n"
     "The first file contains a reference genome in FASTA format.\n"
     "The second file contains a set of fragments in either FASTA or FASTQ format.\n\n"
     "Mapper parses two files and displays statistics for them which are:\n"
     "names of sequences in the reference file and their lengths,\n"
     "number of sequences in the fragments file, their average length,\n"
-    "N50 length, minimal and maximal length.\n\n";
+    "N50 length, minimal and maximal length, alignment score.\n\n";
 }
 
 void printVersion(){
@@ -71,25 +56,53 @@ public:
     string names, datas;
 };
 
+int calculate_score(int algorithm, int gap, int match, int mismatch, const vector<unique_ptr<Sequence>> &fragments){
+	int index1, index2;
+	string cigar;
+    	unsigned int target_begin;
+	srand((unsigned)time(NULL));
+	while(1){
+		index1 = rand()%(fragments.size()) + 0;
+		if(fragments[index1]->datas.length() < 5000){
+			break;
+		}
+	}
+	while(1){
+		index2 = rand()%(fragments.size()) + 0;
+		if(fragments[index2]->datas.length() < 5000){
+			break;
+		}
+	}
+	char* query = strcpy(query, fragments[index1]->datas.c_str());
+	int query_len = fragments[index1]->datas.length();
+	char* target = strcpy(query, fragments[index2]->datas.c_str());
+	int target_len = fragments[index2]->datas.length();
+	orange::Alignment::AlignmentType type;
+	if(algorithm == 0){
+		type = orange::Alignment::AlignmentType::global;
+	}else if(algorithm == 1){
+		type = orange::Alignment::AlignmentType::local;
+	}
+	else if(algorithm == 2){
+		type = orange::Alignment::AlignmentType::semiGlobal;
+	}
+	return orange::Alignment::Align(query, query_len, target, target_len, type, match, mismatch, gap, &cigar, &target_begin); 
+}
+
 int main(int argc, char *argv[]){
     int i;
-    orange::Alignment object;
-	string algorithm;
-	int match;
-	int mismatch;
-	int gap;
     
    static struct option long_options[] = {
             {"help", no_argument, &help_flag, 1},
             {"version", no_argument, &version_flag, 1},
-           // {"algorithm", required_argument, &alg_flag, 1},
-           // {"match", required_argument, &match_flag, 1},
-           // {"mismatch", required_argument, &mismatch_flag, 1},
-           // {"gap", required_argument, &gap_flag, 1},
+            {"algorithm", required_argument, &alg_flag, 1},
+            {"match", required_argument, &match_flag, 1},
+            {"mismatch", required_argument, &mismatch_flag, 1},
+            {"gap", required_argument, &gap_flag, 1},
             {0, 0, 0, 0}    
     };
     
-       while((i = getopt_long(argc, argv, "hv", long_options, nullptr)) != -1){
+       while((i = getopt_long(argc, argv, "hva:m:n:g", long_options, nullptr)) != -1){
         
         switch (i)
         {
@@ -104,16 +117,16 @@ int main(int argc, char *argv[]){
             version_flag = 1;
             break;
         case 'a':
-            algorithm = stoi(optarg);
+            alg_flag = stoi(optarg);
             break;
         case 'm':
-            match = stoi(optarg);
+            match_flag = stoi(optarg);
             break;
         case 'n':
-            mismatch = stoi(optarg);
+            mismatch_flag = stoi(optarg);
             break;
         case 'g':
-            gap = stoi(optarg);
+            gap_flag = stoi(optarg);
             break;
         case '?':
             break;    
@@ -170,7 +183,7 @@ int main(int argc, char *argv[]){
         cerr<<"Maximal length = "<<len.front()<<"\n";
         
         //alignment score 
-        int score = calculate_score(algorithm, gap, match, mismatch, fragments_parsed);
+        int score = calculate_score(alg_flag, gap_flag, match_flag, mismatch_flag, fragments_parsed);
         cerr<<"Alignment score = "<<score<<"\n";
     }
     return 0;

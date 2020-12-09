@@ -1,4 +1,4 @@
-# Install script for directory: /home/josip/Radna površina/mapper/bioparser
+# Install script for directory: /home/student/Desktop/projekt/BSc-project-20-21/src/orange_mapper/bioparser
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
