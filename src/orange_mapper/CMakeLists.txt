@@ -14,4 +14,4 @@ if (NOT TARGET bioparser)
   add_subdirectory(bioparser EXCLUDE_FROM_ALL)
 endif ()
 
-
+target_link_libraries(orange_mapper orange_alignment bioparser)

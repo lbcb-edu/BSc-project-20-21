@@ -1,0 +1,51 @@
+sudo: required
+
+language: cpp
+
+    matrix:
+      include:
+        # works on Precise and Trusty
+        #g++ for linux
+        - os: linux
+          compiler: gcc
+          addons:
+            apt:
+              sources:
+                - ubuntu-toolchain-r-test
+              packages:
+                - g++-7
+          env:
+            - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        #clang for linux
+        - os: linux
+          compiler: clang
+          addons:
+            apt:
+              sources:
+                - ubuntu-toolchain-r-test
+                - llvm-toolchain-precise-3.8
+              packages:
+                - clang-3.8
+          env:
+            - MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
+        #g++ for osx
+        - os: osx
+          compiler: gcc
+          osx_image: xcode12
+        #clang for osx
+        - os: osx
+         compiler: clang
+          osx_image: xcode12
+    before_install:
+        - git clone https://github.com/google/googletest
+        - cd googletest
+        - mkdir build
+        - cmake ..
+        - sudo make install
+        - cd ../../
+
+    script:
+        - mkdir build
+        -cmake ..
+        -make
+        - ./bin/orange_mapper_test

@@ -1,16 +1,44 @@
 #include <iostream>
 #include <getopt.h>
 #include <vector>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
 
 
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
+#include "orange_alignment.h"
 
 using namespace std;
 #define VERSION "v0.1.0"
 
 static int help_flag;
 static int version_flag;
+
+int calculate_score(string type, int gap, int match, int mismatch, const vector<unique_ptr<Sequence>> &fragments){
+	int index1, index2;
+	srand((unsigned)time(NULL));
+	while(1){
+		index1 = rand()%(fragments.size()) + 0;
+		if(fragments[index1]->datas.length() < 5000){
+			break;
+		}
+	}
+	while(1){
+		index2 = rand()%(fragments.size()) + 0;
+		if(fragments[index2]->datas.length() < 5000){
+			break;
+		}
+	}
+	char* query = strcpy(query, fragments[index1]->datas.c_str());
+	int query_len = fragments[index1]->datas.length();
+	char* target = strcpy(query, fragments[index2]->datas.c_str());
+	int target_len = fragments[index2]->datas.length();
+	return orange::Align(query, query_len, target, target_len, static_cast<orange::AlignmentType>(type), match, mismatch, gap, cigar, target_begin); 
+}
+
+
 void printHelp(){
     std::cout << "\norange_mapper usage:\n"
     "./orange_mapper [OPTION]\n"
@@ -45,14 +73,23 @@ public:
 
 int main(int argc, char *argv[]){
     int i;
+    orange::Alignment object;
+	string algorithm;
+	int match;
+	int mismatch;
+	int gap;
     
-    static struct option long_options[] = {
+   static struct option long_options[] = {
             {"help", no_argument, &help_flag, 1},
             {"version", no_argument, &version_flag, 1},
+           // {"algorithm", required_argument, &alg_flag, 1},
+           // {"match", required_argument, &match_flag, 1},
+           // {"mismatch", required_argument, &mismatch_flag, 1},
+           // {"gap", required_argument, &gap_flag, 1},
             {0, 0, 0, 0}    
     };
     
-    while((i = getopt_long(argc, argv, "hv", long_options, nullptr)) != -1){
+       while((i = getopt_long(argc, argv, "hv", long_options, nullptr)) != -1){
         
         switch (i)
         {
@@ -66,15 +103,24 @@ int main(int argc, char *argv[]){
         case 'v':
             version_flag = 1;
             break;
-
+        case 'a':
+            algorithm = stoi(optarg);
+            break;
+        case 'm':
+            match = stoi(optarg);
+            break;
+        case 'n':
+            mismatch = stoi(optarg);
+            break;
+        case 'g':
+            gap = stoi(optarg);
+            break;
         case '?':
             break;    
-        
         default:
             abort();
         }
     }
-
     if(help_flag){
         printHelp();
     } else if(version_flag){
@@ -122,6 +168,10 @@ int main(int argc, char *argv[]){
 
         //maximal length - first element
         cerr<<"Maximal length = "<<len.front()<<"\n";
+        
+        //alignment score 
+        int score = calculate_score(algorithm, gap, match, mismatch, fragments_parsed);
+        cerr<<"Alignment score = "<<score<<"\n";
     }
     return 0;
 }
