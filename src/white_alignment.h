@@ -44,25 +44,25 @@ namespace white {
                     std::vector<Cell>(target_len + 1, {Operation::kNone, 0})) {}
 
         int NeedlemanWunsch() {
-            std::cout << "check2\n";
+            //std::cout << "checkNeedle1\n";
             for (int i = 1; i < query_len; i++) {
-                Mat[0][i].value = i;
-                Mat[0][i].operation = kDelete;
-            }
-            for (int i = 1; i < target_len; i++) {
                 Mat[i][0].value = i;
-                Mat[i][0].operation = kInsert;
+                Mat[i][0].operation = kDelete;
             }
-
+            //std::cout << "checkNeedle2\n";
             for (int i = 1; i < target_len; i++) {
-                for (int j = 1; j < query_len; j++) {
+                Mat[0][i].value = i;
+                Mat[0][i].operation = kInsert;
+            }
+            //std::cout << "checkNeedle3\n";
+            for (int i = 1; i < query_len; i++) {
+                for (int j = 1; j < target_len; j++) {
                     Cell upleft = Mat[i-1][j-1];
                     Cell up = Mat[i-1][j];
                     Cell left = Mat[i][j-1];
-
                     Operation op;
                     int upleftVal = upleft.value;
-                    if (query[j] == target[i]) {
+                    if (query[i] == target[j]) {
                         upleftVal += match;
                         op = kMatch;
                     }
@@ -84,14 +84,18 @@ namespace white {
                     Mat[i][j].value = min;
                     Mat[i][j].operation = op;
                 }
+                //std::cout << "checkNeedle5\n";
             }
-            std::cout << "check3\n";
+            //std::cout << "check3\n";
             if (cigar) {
+                //std::cout << "checkexist\n";
                 std::string starting_cigar = "";
                 int row = query_len;
                 int col = target_len;
                 *cigar = CigarBuilder(row, col, starting_cigar);
+                //std::cout << "checkcigarassign\n";
                 *target_begin = 1;
+                //std::cout << "check4\n";
             }
 
             return Mat[query_len][target_len].value;
@@ -221,6 +225,7 @@ namespace white {
         }
 
         std::string CigarBuilder(int& row, int& col, std::string starting_cigar) {
+            //std::cout << "checkCigarBuilder1\n";
             while (Mat[row][col].operation != kNone) {
                 switch (Mat[row][col].operation) {
                     case kDelete:
@@ -249,6 +254,7 @@ namespace white {
                         break;
                 }
             }
+            //std::cout << "checkcigar2\n";
 
             std::string final_cigar = "";
             char symbol = starting_cigar[0];
@@ -264,8 +270,10 @@ namespace white {
                     count = 1;
                 }
             }
-            final_cigar += std::to_string(count) + symbol;  
+            final_cigar += std::to_string(count) + symbol; 
+            //std::cout << "checkfinalcigar\n"; 
             return final_cigar;
+
         }
 
         void ClippedCigarBuilder(int row, int col) {
