@@ -111,17 +111,19 @@ void help_print(){
     "minimal and maximal length.\n\n";
 }
 
-int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragment_list) {
+int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragment_list, std::string* cigar, unsigned int* target_begin) {
+	std::cout << "check0\n";
 	srand (time(NULL));
 	int query_index;
 	int target_index;
 	white::AlignmentType align_type;
+	std::cout << "check0.25\n";
 	do {
-		query_index = rand() % (size + 1);
-		target_index = rand() % (size + 1);
+		query_index = rand() % (size);
+		target_index = rand() % (size);
 	} while (fragment_list[query_index] -> getDataLength() > 5000 &&
 		fragment_list[target_index] -> getDataLength() > 5000);
-	
+	std::cout << "check0.5\n";
 	switch (align_algorithm) {
 	case 0:
 		align_type = white::AlignmentType::GLOBAL;
@@ -135,14 +137,15 @@ int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragme
 	default:
 		break;
 	}
-
-	white::Aligner* aligner = new white::Aligner(fragment_list[query_index] -> getData().c_str(),
+	std::cout << "check1\n";
+	white::Aligner aligner = white::Aligner(fragment_list[query_index] -> getData().c_str(),
 		fragment_list[query_index] -> getDataLength(),
 		fragment_list[target_index] -> getData().c_str(),
 		fragment_list[target_index] -> getDataLength(),
-		match_cost, mismatch_cost, gap_cost, nullptr, nullptr);
+		match_cost, mismatch_cost, gap_cost, cigar, target_begin);
 	
-		int align_score = aligner -> Align (align_type);
+		int align_score = aligner.Align (align_type);
+	return align_score;
 };
 
 int main(int argc, char *argv[]){
@@ -271,9 +274,9 @@ int main(int argc, char *argv[]){
 	std::cerr << "Minimum: " << fragmentVector.front() << "\n\n";
 	std::cerr << "Maximum: " << fragmentVector.back() << "\n\n";
 
-	std::string cigar = "lol";
-	int target_begin = 9;
-	int alignment_score = calcAlignment(f_size, f);
+	std::string *cigar;
+	unsigned int *target_begin;
+	int alignment_score = calcAlignment(f_size, f, cigar, target_begin);
 
 	 std::cout << "Alignment score: " << alignment_score << '\n'
             << "Target begin index: " << target_begin << "\n\n"

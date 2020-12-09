@@ -44,6 +44,7 @@ namespace white {
                     std::vector<Cell>(target_len + 1, {Operation::kNone, 0})) {}
 
         int NeedlemanWunsch() {
+            std::cout << "check2\n";
             for (int i = 1; i < query_len; i++) {
                 Mat[0][i].value = i;
                 Mat[0][i].operation = kDelete;
@@ -84,7 +85,7 @@ namespace white {
                     Mat[i][j].operation = op;
                 }
             }
-
+            std::cout << "check3\n";
             if (cigar) {
                 std::string starting_cigar = "";
                 int row = query_len;
