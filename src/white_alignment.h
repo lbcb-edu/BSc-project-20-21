@@ -27,7 +27,6 @@ namespace white {
             unsigned int* target_begin;
             std::vector<std::vector<Cell>> Mat;
 
-        
         Aligner(const char* query, unsigned int query_len, const char* target,
           unsigned int target_len, int match, int mismatch, int gap,
           std::string* cigar, unsigned int* target_begin)
@@ -45,18 +44,18 @@ namespace white {
 
         int NeedlemanWunsch() {
             //std::cout << "checkNeedle1\n";
-            for (int i = 1; i < query_len; i++) {
+            for (int i = 1; i < query_len+1; i++) {
                 Mat[i][0].value = i;
                 Mat[i][0].operation = kDelete;
             }
             //std::cout << "checkNeedle2\n";
-            for (int i = 1; i < target_len; i++) {
+            for (int i = 1; i < target_len+1; i++) {
                 Mat[0][i].value = i;
                 Mat[0][i].operation = kInsert;
             }
             //std::cout << "checkNeedle3\n";
-            for (int i = 1; i < query_len; i++) {
-                for (int j = 1; j < target_len; j++) {
+            for (int i = 2; i < query_len+1; i++) {
+                for (int j = 2; j < target_len+1; j++) {
                     Cell upleft = Mat[i-1][j-1];
                     Cell up = Mat[i-1][j];
                     Cell left = Mat[i][j-1];
@@ -102,11 +101,11 @@ namespace white {
         }
 
         int SmithWaterman() {
-            for (int i = 1; i < query_len; i++) {
+            for (int i = 1; i < query_len+1; i++) {
                     Mat[i][0].value = 0;
                     Mat[i][0].operation = kNone;
                 }
-                for (int i = 1; i < target_len; i++) {
+                for (int i = 1; i < target_len+1; i++) {
                     Mat[0][i].value = 0;
                     Mat[0][i].operation = kNone;
                 }
@@ -114,8 +113,8 @@ namespace white {
                 std::pair <int, int> maximalCell(0, 0);
                 int maxVal = 0;
 
-                for (int i = 1; i < query_len; i++) {
-                    for (int j = 1; j < target_len; j++) {
+                for (int i = 1; i < query_len+1; i++) {
+                    for (int j = 1; j < target_len+1; j++) {
                         Cell upleft = Mat[i-1][j-1];
                         Cell up = Mat[i-1][j];
                         Cell left = Mat[i][j-1];
@@ -162,18 +161,19 @@ namespace white {
             }  
 
         int SemiGlobal() {
-            for (int i = 1; i < query_len; i++) {
+
+            for (int i = 1; i < query_len+1; i++) {
                 Mat[i][0].value = std::numeric_limits<int>::min();
                 Mat[i][0].operation = kDelete;
             }
-            for (int i = 1; i < target_len; i++) {
+            for (int i = 1; i < target_len+1; i++) {
                 Mat[0][i].value = std::numeric_limits<int>::min();
                 Mat[0][i].operation = kInsert;
             }
             std::pair <int, int> maximalCell(0, 0);
             int maxVal = std::numeric_limits<int>::min();;
-            for (int i = 1; i < query_len; i++) {
-                for (int j = 1; j < target_len; j++) {
+            for (int i = 1; i < query_len+1; i++) {
+                for (int j = 1; j < target_len+1; j++) {
                     Cell upleft = Mat[i-1][j-1];
                     Cell up = Mat[i-1][j];
                     Cell left = Mat[i][j-1];
@@ -184,13 +184,13 @@ namespace white {
                         op = kMatch;
                     }
                     else {
-                        upleftVal -= mismatch;
+                        upleftVal += mismatch;
                         op = kMismatch;
                     }
                     int max = upleftVal;
                     
-                    int upVal = up.value - gap;
-                    int leftVal = left.value - gap;
+                    int upVal = up.value + gap;
+                    int leftVal = left.value + gap;
                     if (upVal > max) {
                         max = upVal;
                         op = kDelete;
@@ -203,17 +203,18 @@ namespace white {
                     Mat[i][j].operation = op;
                 }
             } 
-            for (int i = 0; i < target_len; i++) {
+
+            for (int i = 0; i < target_len+1; i++) {
                 if (Mat[query_len][i].value > maxVal) {
                     maximalCell.first = query_len;
                     maximalCell.second = i;
                     maxVal = Mat[query_len][i].value;
                 }
             }
-            for (int i = 0; i < query_len; i++) {
+            for (int i = 0; i < query_len+1; i++) {
                 if (Mat[i][target_len].value > maxVal) {
-                    maximalCell.first = target_len;
-                    maximalCell.second = i;
+                    maximalCell.first = i;
+                    maximalCell.second = target_len;
                     maxVal = Mat[i][target_len].value;
                 }
             }
@@ -285,7 +286,8 @@ namespace white {
             if (row != 0) {
                final_cigar = std::to_string(row) + "S" + final_cigar; 
             }
-            *target_begin = col + 1;
+            int tb = col + 1;
+            *target_begin = tb;
             *cigar = final_cigar;
         }
 
