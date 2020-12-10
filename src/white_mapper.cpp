@@ -138,24 +138,19 @@ int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragme
 		break;
 	}
 	//std::cout << "check1\n";
-	white::Aligner aligner = white::Aligner(fragment_list[query_index] -> getData().c_str(),
+	white::Aligner *aligner = new white::Aligner(fragment_list[query_index] -> getData().c_str(),
 		fragment_list[query_index] -> getDataLength(),
 		fragment_list[target_index] -> getData().c_str(),
 		fragment_list[target_index] -> getDataLength(),
 		match_cost, mismatch_cost, gap_cost, cigar, target_begin);
 	
-		int align_score = aligner.Align (align_type);
+		int align_score = aligner -> Align (align_type);
 	return align_score;
 };
 
 int main(int argc, char *argv[]){
 
     int opt;
-
-	int align_algorithm = 0;
-	int match_cost = 1;
-	int mismatch_cost = -1;
-	int gap_cost = -1;
     
     static struct option long_options[] = {
             {"help", no_argument, &help_req, 1},
@@ -168,7 +163,6 @@ int main(int argc, char *argv[]){
     };
 
 	
-    
     while ((opt = getopt_long(argc, argv, "a:m:n:g:hv", long_options, nullptr)) != -1){
         
         switch (opt)
@@ -208,6 +202,7 @@ int main(int argc, char *argv[]){
         }
     }
 
+
 	//prints help or version and ends the program, depending on which option flag was input as an argument
     if (version_req){
         version_print();
@@ -218,26 +213,29 @@ int main(int argc, char *argv[]){
 	}
 
 	//if the input wasn't help or version flag, then it checks if we have given two arguments
-	if (argc != 3) {
-		std::cerr << "error: invalid input, please include exactly two files\n";
-		return 1;
-	}
+	// if (argc != 3) {
+	// 	std::cerr << "error: invalid input, please include exactly two files\n";
+	// 	return 1;
+	// }
 
 	//if the given two arguments aren't in valid formats, the program recieves an error
-	if (!checkArgs(argv)) {
-		std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order\n";
-		return 1;
+	// if (!checkArgs(argv)) {
+	// 	std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order\n";
+	// 	return 1;
+	// }
+
+	std::cout << argc << "\n";
+	for (int i = 0; i < argc; i++) {
+		std::cout << argv[i] << "\n";
 	}
 
-	
-
 	//parsing the first file
-	auto genome = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[1]);
+	auto genome = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[argc-2]);
 	auto g = genome->Parse(-1);
 	int g_size = (int)g.size();
 
 	//parsing the second file
-	auto fragments = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[2]);
+	auto fragments = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[argc-1]);
 	auto f = fragments->Parse(-1);
 	int f_size = (int)f.size();
 	
