@@ -16,25 +16,27 @@ target_include_directories(
   "${PROJECT_NAME}" PUBLIC
   "${PROJECT_BINARY_DIR}/include"
   "${PROJECT_SOURCE_DIR}/blue_alignment/include"
+  "${PROJECT_SOURCE_DIR}/blue_minimizers"
   )
 
+add_subdirectory(blue_minimizers)
 add_subdirectory(blue_alignment)
 
 if (NOT TARGET bioparser)
   add_subdirectory(bioparser EXCLUDE_FROM_ALL)
 endif ()
 
-target_link_libraries(blue_mapper PUBLIC blue_alignment bioparser)
+target_link_libraries(blue_mapper PUBLIC blue_minimizers blue_alignment bioparser)
 
 
-option(blue_alignment_build_tests "Build unit tests for blue alignment" ON)
-if (blue_alignment_build_tests)
-  enable_testing()
-  find_package(GTest REQUIRED)
-  add_executable(${PROJECT_NAME}_test
-    test/blue_alignment_test.cpp
-  )
-  target_include_directories(${PROJECT_NAME}_test PUBLIC "${PROJECT_SOURCE_DIR}/blue_alignment/include")
-  target_link_libraries(${PROJECT_NAME}_test PUBLIC blue_alignment GTest::Main)
+# option(blue_alignment_build_tests "Build unit tests for blue alignment" ON)
+# if (blue_alignment_build_tests)
+#   enable_testing()
+#   find_package(GTest REQUIRED)
+#   add_executable(${PROJECT_NAME}_test
+#     test/blue_alignment_test.cpp
+#   )
+#   target_include_directories(${PROJECT_NAME}_test PUBLIC "${PROJECT_SOURCE_DIR}/blue_alignment/include")
+#   target_link_libraries(${PROJECT_NAME}_test PUBLIC blue_alignment GTest::Main)
   
-endif()
+# endif()
