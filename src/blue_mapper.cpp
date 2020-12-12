@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <iostream>
 #include <random>
+#include <unordered_map>
 
 #include "alignment/blue_alignment.hpp"
 #include "bioparser/fasta_parser.hpp"
@@ -18,7 +19,7 @@ static constexpr option options[] = {
     {"gap", required_argument, nullptr, 'g'},
     {"kmer_len", required_argument, nullptr, 'k'},
     {"window_len", required_argument, nullptr, 'w'},
-    {"ignored_frequency", required_argument, nullptr, 'f'},
+    {"ignored_fraction", required_argument, nullptr, 'f'},
     {"version", no_argument, nullptr, 'v'},
     {"help", no_argument, nullptr, 'h'},
     {nullptr, 0, nullptr, 0}};
@@ -59,7 +60,7 @@ void Help() {
                "    -w, --window_len <int>\n"
                "      default: 5\n"
                "      window length\n"
-               "    -f, --ignored_frequency <double>\n"
+               "    -f, --ignored_fraction <double> in range [0,1)\n"
                "      default: 0.001\n"
                "      fraction of most frequent minimizers to be ignored\n"
                "    -v, --version\n"
@@ -161,7 +162,8 @@ int main(int argc, char* argv[]) {
   int8_t algorithm = 0;
   int8_t kmer_len = 15;
   int8_t window_len = 5;
-  double ignored_frequency = 0.001;  // percentage of most frequent minimizers
+  double ignored_fraction =
+      0.001;  // fraction of most frequent minimizers to be ignored
 
   const char* opt_string = "a:m:n:g:k:w:f:hv";
   while ((opt = getopt_long(argc, argv, opt_string, options, nullptr)) != -1) {
@@ -172,7 +174,7 @@ int main(int argc, char* argv[]) {
       case 'g': gap_cost = atoi(optarg); break;
       case 'k': kmer_len = atoi(optarg); break;
       case 'w': window_len = atoi(optarg); break;
-      case 'f': ignored_frequency = atof(optarg); break;
+      case 'f': ignored_fraction = atof(optarg); break;
       case 'v': Version(); return 0;
       case 'h': Help(); return 0;
       default: return 1;
@@ -182,6 +184,10 @@ int main(int argc, char* argv[]) {
   if (argc != optind + 2) {
     std::cerr << "Error: wrong number of arguments." << std::endl;
     Help();
+    return 1;
+  }
+  if (ignored_fraction < 0 || ignored_fraction >= 1) {
+    std::cerr << "Error: ignored_fraction out of range [0,1). " << std::endl;
     return 1;
   }
 
@@ -251,18 +257,16 @@ int main(int argc, char* argv[]) {
             << "  Target begin index: " << target_begin << "\n\n"
             << "  CIGAR: " << cigar << "\n\n";
 
-  // MINIMIZER INDEX
+  // MINIMIZER STATS
   std::cout << "Computing minimizers...\n";
   std::unordered_map<unsigned int, unsigned int> minimizers;
 
-  long long non_singletons = 0;
-  long long total = 0;
+  unsigned int non_singletons = 0;
   for (auto kmer :
        blue::Minimize(reference->data_.c_str(), reference->data_.size(),
                       kmer_len, window_len)) {
     if (minimizers.count(std::get<0>(kmer))) non_singletons++;
     minimizers[std::get<0>(kmer)]++;
-    total++;
   }
 
   for (auto& fragment : fragments)
@@ -271,22 +275,21 @@ int main(int argc, char* argv[]) {
                         kmer_len, window_len)) {
       if (minimizers.count(std::get<0>(kmer))) non_singletons++;
       minimizers[std::get<0>(kmer)]++;
-      total++;
     }
 
-  unsigned int max_occurrences = 0;
-  for (auto& pair : minimizers) {
-    if (pair.second / (double)total < 1 - ignored_frequency)  //?
-      max_occurrences = std::max(max_occurrences, pair.second);
-  }
+  std::vector<unsigned int> occurrences;
+  occurrences.reserve(minimizers.size());
+  for (auto pair : minimizers) occurrences.push_back(pair.second);
+  std::sort(occurrences.begin(), occurrences.end());
+
+  unsigned int ignore_size = ignored_fraction * occurrences.size();
 
   std::cout << "  Number of distinct minimizers: " << minimizers.size() << '\n'
             << "  Fraction of singletons:        "
             << (minimizers.size() - non_singletons) / (double)minimizers.size()
             << '\n'
-            << "  Total number of minimizers     " << total << '\n'
             << "  Number of occurrences of the most frequent minimizer: "
-            << max_occurrences << '\n';
+            << occurrences[occurrences.size() - ignore_size - 1] << '\n';
 
   return 0;
 }

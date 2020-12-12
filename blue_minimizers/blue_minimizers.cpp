@@ -1,9 +1,7 @@
 #include "blue_minimizers.hpp"
 
-#include <bitset>
 #include <deque>
 #include <ios>
-#include <iostream>
 #include <string>
 #include <unordered_set>
 
