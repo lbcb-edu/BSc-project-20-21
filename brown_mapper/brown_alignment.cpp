@@ -4,12 +4,6 @@
 #include <math.h>
 namespace brown {
 
-    //enum AlignmentType {GLOBAL, LOCAL, SEMIGLOBAL};
-
-    //int bzvz() {
-    //    return 1;
-    //}
-
     int Align(
         const char* query, unsigned int query_len,
         const char* target, unsigned int target_len,
@@ -35,7 +29,7 @@ namespace brown {
                 for (int i = 1; i < query_len+1; i++)
                     for (int j = 1; j < target_len+1; j++) {
                         int matchCost;
-                        if (query[i] == target[j]) matchCost=m[i-1][j-1] + match;
+                        if (query[i - 1] == target[j - 1]) matchCost=m[i-1][j-1] + match;
                         else matchCost=m[i-1][j-1] + mismatch;
                         m[i][j]=std::max(std::max(matchCost, m[i][j-1] + gap), m[i-1][j] + gap);
                         
@@ -58,9 +52,9 @@ namespace brown {
                 for (int i = 1; i < query_len + 1; i++)
                     for (int j = 1; j < target_len + 1; j++) {
                         int matchCost;
-                        if (query[i]==target[j]) matchCost = m[i-1][j-1]+match;
-                        else matchCost=m[i-1][j-1] + mismatch;
-                        m[i][j]=std::max(std::max(0, matchCost), std::max(m[i][j-1] + gap, m[i-1][j] + gap));
+                        if (query[i - 1] == target[j - 1]) matchCost = m[i-1][j-1]+match;
+                        else matchCost = m[i-1][j-1] + mismatch;
+                        m[i][j] = std::max(std::max(0, matchCost), std::max(m[i][j-1] + gap, m[i-1][j] + gap));
                         //maxCell=std::max(maxCell, m[i][j]);
                         if (m[i][j] > maxCell) {
                             maxCell = m[i][j];
@@ -81,11 +75,11 @@ namespace brown {
                 for (int i = 1; i < query_len + 1; i++)
                     for (int j = 1; j < target_len + 1; j++) {
                         int matchCost;
-                        if (query[i]==target[j]) matchCost = m[i-1][j-1]+match;
-                        else matchCost=m[i-1][j-1] + mismatch;
+                        if (query[i - 1] == target[j - 1]) matchCost = m[i-1][j-1]+match;
+                        else matchCost = m[i-1][j-1] + mismatch;
                         m[i][j]=std::max(matchCost, std::max(m[i][j-1] + gap, m[i-1][j] + gap));
                         //maxCell=std::max(maxCell, m[i][j]);
-                        if (m[i][j] > maxCell && (i==query_len || j==target_len)) {
+                        if (m[i][j] > maxCell && (i == query_len || j == target_len)) {
                             maxCell = m[i][j];
                             resultRow = i;
                             resultColumn = j;
@@ -96,62 +90,67 @@ namespace brown {
                 std::cerr << "Invalid AlignmentType" << std::endl;
                 exit(EXIT_FAILURE);
             }
-            int returnRow=resultRow;
-            int returnColumn=resultColumn;
+            int returnRow = resultRow;
+            int returnColumn = resultColumn;
             
-            std::string cigarBeta="";
+            std::string cigarBeta = "";
             int targetLocal;
             if (cigar != nullptr || target_begin !=nullptr) {
                 
-                
-                    while(type==GLOBAL && (resultRow != 0 && resultColumn != 0) || (type==LOCAL || type==SEMIGLOBAL) && (resultRow != 0 || resultColumn != 0) 
-                            || type==LOCAL && m[resultRow][resultColumn] == 0) {
-                        if(!(resultRow==0 || resultColumn==0)) {
-                            if (type == LOCAL) targetLocal=resultColumn;
-                            if (m[resultRow-1][resultColumn-1]+match==m[resultRow][resultColumn]) {
-                                cigarBeta+="M";
+                    while((type==GLOBAL && (resultRow != 0 && resultColumn != 0)) || 
+                            (type==SEMIGLOBAL && (resultRow != 0 || resultColumn != 0)) ||
+                            (type==LOCAL && m[resultRow][resultColumn] != 0)) {
+
+                        if(!(resultRow == 0 || resultColumn == 0)) {  //ovo i dalje ne valja
+                            if (type == LOCAL) targetLocal = resultColumn;
+                            if (m[resultRow-1][resultColumn-1] + match == m[resultRow][resultColumn]) {
+                                cigarBeta += "M";
                                 resultColumn--;
                                 resultRow--;
                             }
-                            else if (m[resultRow-1][resultColumn-1]+mismatch==m[resultRow][resultColumn]) {
-                                cigarBeta+="X";
+                            else if (m[resultRow-1][resultColumn-1] + mismatch == m[resultRow][resultColumn]) {
+                                cigarBeta += "X";
                                 resultColumn--;
                                 resultRow--;
                             }
                         }
-                        else if (resultRow!=0 && m[resultRow-1][resultColumn]+gap==m[resultRow][resultColumn]) {
-                            cigarBeta+="I";
+
+                        if (resultRow != 0 && m[resultRow-1][resultColumn] + gap == m[resultRow][resultColumn]) {
+                            cigarBeta += "D";
                             resultRow--;
                         }
-                        else if(resultColumn!=0) {
-                            cigarBeta="D";
+
+                        if (resultColumn != 0 &&  m[resultRow][resultColumn-1] + gap == m[resultRow][resultColumn]) {
+                            if (type == LOCAL) targetLocal = resultColumn;
+                            cigarBeta += "I";
                             resultColumn--;
                         }
                         
                     }
             }
+
             if(target_begin != nullptr) {
-                    if (type == GLOBAL) *target_begin = 1;
+                    if (type == GLOBAL) *target_begin = 0;
                     else if (type == SEMIGLOBAL) *target_begin = resultColumn;
-                    else *target_begin=targetLocal;
-                    
+                    else *target_begin = targetLocal;
             }
+
             if(cigar != nullptr) {
-                *cigar="";
+                *cigar = "";
                 //cigar->append(cigarBeta.substr(0,1));
-                char current=cigarBeta.at(0);
-                int counter=0;
+                char current = cigarBeta.at(0);
+                int counter = 0;
                 while(!cigarBeta.empty()) {
                     if(cigarBeta.at(0) == current) {
                         counter++;
-                        cigarBeta=cigarBeta.substr(1);
+                        cigarBeta = cigarBeta.substr(1);
 
                     }
                     else {
                         cigar->append(std::to_string(counter));
                         cigar->append(std::string (1, current));
-                        counter=0;
-                        current=cigarBeta.at(0);
+                        counter = 0;
+                        current = cigarBeta.at(0);
                     }
                 }
                 cigar->append(std::to_string(counter));
@@ -160,4 +159,5 @@ namespace brown {
         
             return m[returnRow][returnColumn];
     }
+    
 }

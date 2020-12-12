@@ -7,7 +7,10 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define VERSION "v0.1"
+#define VERSION "v0.5"
+#define DEFAULT_KMER_LENGTH 15
+#define DEFAULT_WINDOW_LENGTH 5
+#define DEFAULT_MINIMIZER_FREQUENCY 0.001
 
 static option long_options[] = {
     {"help", no_argument, nullptr, 'h'},
@@ -17,7 +20,16 @@ static option long_options[] = {
 
 static std::string help = "brown_mapper \n"
                             "-h or --help for help\n"
-                            "-v or --version for programs version\n"
+                            "-v or --version for programs version\n\n"
+                            "Alignment arguments:\n"
+                            "-m   value for matching\n"
+                            "-n   value for mismatching\n"
+                            "-g   value for gap\n\n"
+                            "Minimizizer arguments:\n"
+                            "-k   k-mer length (default: " + std::to_string(DEFAULT_KMER_LENGTH) + ")\n"
+                            "-w   window length (default: " + std::to_string(DEFAULT_WINDOW_LENGTH) + ")\n"
+                            "-f   top f frequent minimizers that will not be taken in account (default:" 
+                            + std::to_string(DEFAULT_MINIMIZER_FREQUENCY) + ")\n\n"
                             "Program accepts two files as floating arguments.\n"
                             "The first file needs to contain a reference genome in FASTA format.\n"
                             "The second file needs to contain a set of fragments\n"
@@ -85,9 +97,9 @@ void printsFragmentsStats(std::vector<std::unique_ptr<Sequence>>& fragments) {
 int main(int argc, char* argv[]) {
 
     brown::AlignmentType type;
-    int match;
-    int gap;
-    int mismatch;
+    int match, gap, mismatch;
+    int kmer_length = DEFAULT_KMER_LENGTH, window_length = DEFAULT_WINDOW_LENGTH;
+    double frequency = DEFAULT_MINIMIZER_FREQUENCY; 
 
     bool match_flag;
     bool mismatch_flag;
@@ -95,7 +107,7 @@ int main(int argc, char* argv[]) {
     bool type_flag;
 
     int c;
-    while ((c = getopt_long(argc, argv, "m:g:n:a:hv", long_options, 0)) != -1) {
+    while ((c = getopt_long(argc, argv, "m:g:n:a:k::w::f::hv", long_options, 0)) != -1) {
         switch (c){
             case 'h' :
                 std::cerr << help << std::endl;
@@ -123,12 +135,32 @@ int main(int argc, char* argv[]) {
                 std::cout << "Allignment type is : " << optarg << std::endl;
                 type_flag = true;
                 break;
+            case 'k' :
+                kmer_length = atoi(optarg);
+                std::cout << "K-mer length is: " << kmer_length << std::endl; //ovo steka
+                break;
+            case 'w':
+                window_length = atoi(optarg);
+                std::cout << "Window length is: " << window_length << std::endl; //ovo steka
+                break;
+            case 'f' :
+                frequency = atof(optarg);   //ovo steka
+                std::cout << "Top f frequent minimizers that will not be taken in account: " << frequency << std::endl;
+                break;
+            case '?' :
+                if (optopt == 'm' || optopt == 'n' || optopt == 'g')
+                    std::cout << "Option -" << optopt << " requires an argument." << std::endl;
+                else 
+                    std::cout << "Unknown option." << std::endl;
+                exit(EXIT_FAILURE); 
             default:
-                return 0;
+                exit(EXIT_FAILURE);
         }
     }
+
+
     //std:: cout << "evo me 2" << std::endl;
-    if (optind < argc) { //promjeni u 3
+    if (optind < argc) {
         //std::cout << "ide pravit stringove";
         std::string file1 = argv[optind++];
         std::string file2 = argv[optind];
