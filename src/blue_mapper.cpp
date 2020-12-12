@@ -2,18 +2,23 @@
 
 #include <getopt.h>
 
+#include <algorithm>
 #include <iostream>
 #include <random>
 
 #include "alignment/blue_alignment.hpp"
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
+#include "blue_minimizers.hpp"
 
 static constexpr option options[] = {
     {"algorithm", required_argument, nullptr, 'a'},
     {"match", required_argument, nullptr, 'm'},
     {"mismatch", required_argument, nullptr, 'n'},
     {"gap", required_argument, nullptr, 'g'},
+    {"kmer_len", required_argument, nullptr, 'k'},
+    {"window_len", required_argument, nullptr, 'w'},
+    {"ignored_frequency", required_argument, nullptr, 'f'},
     {"version", no_argument, nullptr, 'v'},
     {"help", no_argument, nullptr, 'h'},
     {nullptr, 0, nullptr, 0}};
@@ -48,6 +53,15 @@ void Help() {
                "    -g, --gap <int>\n"
                "      default: -8\n"
                "      linear gap penalty\n"
+               "    -k, --kmer_len <int>\n"
+               "      default: 15\n"
+               "      kmer length\n"
+               "    -w, --window_len <int>\n"
+               "      default: 5\n"
+               "      window length\n"
+               "    -f, --ignored_frequency <double>\n"
+               "      default: 0.001\n"
+               "      fraction of most frequent minimizers to be ignored\n"
                "    -v, --version\n"
                "      Print version number\n"
                "    -h, --help\n"
@@ -145,14 +159,20 @@ int main(int argc, char* argv[]) {
   int8_t mismatch_cost = -4;
   int8_t gap_cost = -8;
   int8_t algorithm = 0;
+  int8_t kmer_len = 15;
+  int8_t window_len = 5;
+  double ignored_frequency = 0.001;  // percentage of most frequent minimizers
 
-  const char* opt_string = "a:m:n:g:hv";
+  const char* opt_string = "a:m:n:g:k:w:f:hv";
   while ((opt = getopt_long(argc, argv, opt_string, options, nullptr)) != -1) {
     switch (opt) {
       case 'a': algorithm = atoi(optarg); break;
       case 'm': match_cost = atoi(optarg); break;
       case 'n': mismatch_cost = atoi(optarg); break;
       case 'g': gap_cost = atoi(optarg); break;
+      case 'k': kmer_len = atoi(optarg); break;
+      case 'w': window_len = atoi(optarg); break;
+      case 'f': ignored_frequency = atof(optarg); break;
       case 'v': Version(); return 0;
       case 'h': Help(); return 0;
       default: return 1;
@@ -229,7 +249,44 @@ int main(int argc, char* argv[]) {
 
   std::cout << "  Alignment score:    " << alignment_score << '\n'
             << "  Target begin index: " << target_begin << "\n\n"
-            << "  CIGAR: " << cigar << std::endl;
+            << "  CIGAR: " << cigar << "\n\n";
+
+  // MINIMIZER INDEX
+  std::cout << "Computing minimizers...\n";
+  std::unordered_map<unsigned int, unsigned int> minimizers;
+
+  long long non_singletons = 0;
+  long long total = 0;
+  for (auto kmer :
+       blue::Minimize(reference->data_.c_str(), reference->data_.size(),
+                      kmer_len, window_len)) {
+    if (minimizers.count(std::get<0>(kmer))) non_singletons++;
+    minimizers[std::get<0>(kmer)]++;
+    total++;
+  }
+
+  for (auto& fragment : fragments)
+    for (auto kmer :
+         blue::Minimize(fragment->data_.c_str(), fragment->data_.size(),
+                        kmer_len, window_len)) {
+      if (minimizers.count(std::get<0>(kmer))) non_singletons++;
+      minimizers[std::get<0>(kmer)]++;
+      total++;
+    }
+
+  unsigned int max_occurrences = 0;
+  for (auto& pair : minimizers) {
+    if (pair.second / (double)total < 1 - ignored_frequency)  //?
+      max_occurrences = std::max(max_occurrences, pair.second);
+  }
+
+  std::cout << "  Number of distinct minimizers: " << minimizers.size() << '\n'
+            << "  Fraction of singletons:        "
+            << (minimizers.size() - non_singletons) / (double)minimizers.size()
+            << '\n'
+            << "  Total number of minimizers     " << total << '\n'
+            << "  Number of occurrences of the most frequent minimizer: "
+            << max_occurrences << '\n';
 
   return 0;
 }
