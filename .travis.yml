@@ -81,6 +81,6 @@ script:
     fi
   - mkdir build
   - cd build
-  - sudo cmake ../src -Dalignment_build_tests=ON -Dbuild_mapper=OFF
+  - sudo cmake ../src -Dmapper_build_tests=ON -Dbuild_mapper=OFF
   - sudo cmake --build .
-  - ./pink_alignment_test
+  - ./pink_mapper_test
