@@ -104,74 +104,74 @@ namespace white {
             for (int i = 1; i < query_len+1; i++) {
                     Mat[i][0].value = 0;
                     Mat[i][0].operation = kNone;
-                }
-                for (int i = 1; i < target_len+1; i++) {
-                    Mat[0][i].value = 0;
-                    Mat[0][i].operation = kNone;
-                }
+            }
+            for (int i = 1; i < target_len+1; i++) {
+                Mat[0][i].value = 0;
+                Mat[0][i].operation = kNone;
+            }
 
-                std::pair <int, int> maximalCell(0, 0);
-                int maxVal = 0;
+            std::pair <int, int> maximalCell(0, 0);
+            int maxVal = 0;
 
-                for (int i = 1; i < query_len+1; i++) {
-                    for (int j = 1; j < target_len+1; j++) {
-                        Cell upleft = Mat[i-1][j-1];
-                        Cell up = Mat[i-1][j];
-                        Cell left = Mat[i][j-1];
-                        Operation op; 
+            for (int i = 1; i < query_len+1; i++) {
+                for (int j = 1; j < target_len+1; j++) {
+                    Cell upleft = Mat[i-1][j-1];
+                    Cell up = Mat[i-1][j];
+                    Cell left = Mat[i][j-1];
+                    Operation op; 
 
-                        int upleftVal = upleft.value;
-                        if (query[i] == target[j]) {
-                            upleftVal += match;
-                            op = kMatch;
-                        }
-                        else {
-                            upleftVal += mismatch;
-                            op = kMismatch;
-                        }
-                        int max = upleftVal;
-                        int upVal = up.value + gap;
-                        int leftVal = left.value + gap;
-                        if (upVal > max) {
-                            max = upVal;
-                            op = kDelete;
-                        }
-                        if (leftVal > max) {
-                            max = leftVal;
-                            op = kInsert;
-                        }
-                        if (max < 0) {
-                            max = 0;
-                            op = kNone;
-                        }
-                        Mat[i][j].value = max;
-                        Mat[i][j].operation = op;
-                        if (max > maxVal) {
-                            maxVal = max;
-                            maximalCell.first = i;
-                            maximalCell.second = j;
-                        }
+                    int upleftVal = upleft.value;
+                    if (query[i] == target[j]) {
+                        upleftVal += match;
+                        op = kMatch;
+                    }
+                    else {
+                        upleftVal += mismatch;
+                        op = kMismatch;
+                    }
+                    int max = upleftVal;
+                    int upVal = up.value + gap;
+                    int leftVal = left.value + gap;
+                    if (upVal > max) {
+                        max = upVal;
+                        op = kDelete;
+                    }
+                    if (leftVal > max) {
+                        max = leftVal;
+                        op = kInsert;
+                    }
+                    if (max < 0) {
+                        max = 0;
+                        op = kNone;
+                    }
+                    Mat[i][j].value = max;
+                    Mat[i][j].operation = op;
+                    if (max > maxVal) {
+                        maxVal = max;
+                        maximalCell.first = i;
+                        maximalCell.second = j;
                     }
                 }
+            }
 
-                if (cigar) {
-                    ClippedCigarBuilder(maximalCell.first, maximalCell.second);
-                }
-                return maxVal;
-            }  
+            if (cigar) {
+                ClippedCigarBuilder(maximalCell.first, maximalCell.second);
+            }
+            return maxVal;
+        }  
 
         int SemiGlobal() {
 
             for (int i = 1; i < query_len+1; i++) {
-                Mat[i][0].value = std::numeric_limits<int>::min();
+                Mat[i][0].value = 0;
                 Mat[i][0].operation = kDelete;
             }
             for (int i = 1; i < target_len+1; i++) {
-                Mat[0][i].value = std::numeric_limits<int>::min();
+                Mat[0][i].value = 0;
                 Mat[0][i].operation = kInsert;
             }
             std::pair <int, int> maximalCell(0, 0);
-            int maxVal = std::numeric_limits<int>::min();;
+            int maxVal = std::numeric_limits<int>::min();
             for (int i = 1; i < query_len+1; i++) {
                 for (int j = 1; j < target_len+1; j++) {
                     Cell upleft = Mat[i-1][j-1];
@@ -262,7 +262,7 @@ namespace white {
             int count = 1;
             bool flag;
             for (int i = 1; i < starting_cigar.length(); i++) {
-                bool flag = (symbol == starting_cigar[i]);
+                flag = (symbol == starting_cigar[i]);
                 if (flag) {
                     count++;
                 } else {
