@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.2.2)
 
 # set the project name and version
 project(pink_mapper VERSION 0.3.0)
