@@ -48,8 +48,7 @@ if (mapper_build_tests)
   
   
   add_executable(pink_mapper_test ${TEST_SRC_FILES})
-  target_link_libraries(pink_mapper_test
-    GTest::Main)
+  target_link_libraries(pink_mapper_test ${GTEST_LIBRARIES})
 
   add_test(UnitTests pink_mapper_test)
 endif ()
