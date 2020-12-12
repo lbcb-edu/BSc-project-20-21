@@ -7,9 +7,9 @@
 #include <random>
 #include <unordered_map>
 
-#include "alignment/blue_alignment.hpp"
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
+#include "blue_alignment.hpp"
 #include "blue_minimizers.hpp"
 
 static constexpr option options[] = {

@@ -1,4 +1,4 @@
-#include "alignment/blue_alignment.hpp"
+#include "blue_alignment.hpp"
 
 #include <algorithm>
 #include <limits>
