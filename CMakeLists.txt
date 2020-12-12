@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.12)
-project (blue_mapper VERSION 0.7.0)
+project (blue_mapper VERSION 0.8.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -29,14 +29,26 @@ endif ()
 target_link_libraries(blue_mapper PUBLIC blue_minimizers blue_alignment bioparser)
 
 
-# option(blue_alignment_build_tests "Build unit tests for blue alignment" ON)
-# if (blue_alignment_build_tests)
-#   enable_testing()
-#   find_package(GTest REQUIRED)
-#   add_executable(${PROJECT_NAME}_test
-#     test/blue_alignment_test.cpp
-#   )
-#   target_include_directories(${PROJECT_NAME}_test PUBLIC "${PROJECT_SOURCE_DIR}/blue_alignment/include")
-#   target_link_libraries(${PROJECT_NAME}_test PUBLIC blue_alignment GTest::Main)
+option(blue_alignment_build_tests "Build unit tests for blue alignment" ON)
+if (blue_alignment_build_tests)
+  enable_testing()
+  find_package(GTest REQUIRED)
+  add_executable(${PROJECT_NAME}_alignment_test
+    test/blue_alignment_test.cpp
+  )
+  target_include_directories(${PROJECT_NAME}_alignment_test PUBLIC "${PROJECT_SOURCE_DIR}/blue_alignment/include")
+  target_link_libraries(${PROJECT_NAME}_alignment_test PUBLIC blue_alignment GTest::Main)
   
-# endif()
+endif()
+
+option(blue_minimizers_build_tests "Build unit tests for blue minimizers" ON)
+if (blue_minimizers_build_tests)
+  enable_testing()
+  find_package(GTest REQUIRED)
+  add_executable(${PROJECT_NAME}_minimizers_test
+    test/blue_minimizers_test.cpp
+  )
+  target_include_directories(${PROJECT_NAME}_minimizers_test PUBLIC "${PROJECT_SOURCE_DIR}/blue_minimizers")
+  target_link_libraries(${PROJECT_NAME}_minimizers_test PUBLIC blue_minimizers GTest::Main)
+  
+endif()

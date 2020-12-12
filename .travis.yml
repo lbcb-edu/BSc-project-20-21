@@ -56,4 +56,5 @@ before_script:
 
 script:
   - make
-  - ./bin/blue_mapper_test
+  - ./bin/blue_mapper_alignment_test
+  - ./bin/blue_mapper_minimizers_test
