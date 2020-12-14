@@ -14,7 +14,6 @@ namespace white {
 
         std::string chToStr(sequence);
         std::string chToStrComp(complementSeq(sequence, sequence_len));
-        //window_len = 7, kmer_len = 3
         int tupleCounter = 1;
         std::string min = "";
         std::string minComp = "";
@@ -26,7 +25,7 @@ namespace white {
                 std::string subSeq = chToStr.substr(window_len*i, window_len*(i+1)); //next window
                 for (int j = 0; j < window_len-(kmer_len-1); j++) {
                     std::string kmer = subSeq.substr(j, kmer_len-1 + j); //next kmer
-                    if (min == "" || kmer.compare(min) < 0) {
+                    if (min == "" || compareLetter(kmer, min) < 0) {
                         min = kmer;
                         minTuple = {-1, window_len*i + j, true};
                     }
@@ -36,7 +35,7 @@ namespace white {
                 subSeq = chToStrComp.substr(window_len*i, window_len*(i+1));
                 for (int j = 0; j < window_len-(kmer_len-1); j++) { //complement loop
                     std::string kmer = subSeq.substr(j, kmer_len-1 + j);
-                    if (minComp == "" || kmer.compare(minComp) < 0) {
+                    if (minComp == "" || compareLetter(kmer, minComp) < 0) {
                         minComp = kmer;
                         minTupleComp = {-1, window_len*i + j, false};
                     }
@@ -61,7 +60,7 @@ namespace white {
         //T -> A
         //G -> C
         //C -> G
-
+        
         const char* compSeq = "";
         for (int i = 0; i < sequence_len; i++) {
             if (sequence[i] == 'A') {
@@ -82,4 +81,35 @@ namespace white {
     }
 
 
+    int letterMapping(char letter) {
+        switch(letter) {
+            case 'C':
+                return 0;
+            case 'A':
+                return 1;
+            case 'T':
+                return 2;
+            case 'G':
+                return 3;
+            default:
+                return -1; //GREŠKA
+        }
+    }
+
+
+    int compareLetter(std::string first, std::string second) {
+        int counter = 0;
+        for (int i = 0; i < first.length(); i++) {
+            if (letterMapping(first[i]) < letterMapping(second[i])) {
+                return -1;
+            }
+            if (letterMapping(first[i]) == letterMapping(second[i])) {
+                continue;
+            }
+            else {
+                return 1;
+            }
+        }
+        return 0;
+    }
 }
