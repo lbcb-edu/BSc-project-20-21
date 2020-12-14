@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION "3.10.0")
 
 project(orange_mapper VERSION 0.1.0)
-
-add_executable(orange_mapper orange_mapper.cpp)
+add_executable(${PROJECT_NAME} orange_mapper.cpp)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,4 +13,21 @@ if (NOT TARGET bioparser)
   add_subdirectory(bioparser EXCLUDE_FROM_ALL)
 endif ()
 
-target_link_libraries(orange_mapper orange_alignment bioparser)
+add_subdirectory(orange_alignment)
+
+#target_link_directories(${PROJECT_NAME} PUBLIC orange_alignment)
+#target_link_directories(${PROJECT_NAME} PRIVATE orange_alignment)
+
+target_link_libraries(${PROJECT_NAME} bioparser orange_alignment)
+
+# Setup testing
+#enable_testing()
+#find_package(GTest REQUIRED)
+#include_directories(${GTEST_INCLUDE_DIR})
+
+#add_executable(_test
+ #   orange_mapper_test.cpp
+#)
+
+#target_link_libraries(test orange_mapper GTest::Main)
+

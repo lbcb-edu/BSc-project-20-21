@@ -1,0 +1,1 @@
+add_library(orange_alignment orange_alignment.cpp orange_alignment.h)

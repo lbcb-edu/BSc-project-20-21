@@ -6,17 +6,10 @@
 #include<iostream>
 #include<algorithm>
 #include<vector>
+#include<string>
 using namespace std;
 namespace orange 
 {   
-    enum Operation { sMatch, sMismatch, sDelete, sInsert, sNone };
-    struct Cell {
-        int value;
-        Operation op;
-    };
-    enum AlignmentType { global, local, semiGlobal };
-    class Alignment {
-    public:
         const char* query;
         unsigned int query_len;
         const char* target;
@@ -28,21 +21,8 @@ namespace orange
         std::string* cigar = nullptr;
         unsigned int* target_begin = nullptr;
         std::vector<std::vector<Cell>> mainMatrix;
-        Alignment(const char* query, unsigned int query_len,
-            const char* target, unsigned int target_len,
-            orange::AlignmentType type,
-            int match,
-            int mismatch,
-            int gap,
-            std::string* cigar = nullptr,
-            unsigned int* target_begin = nullptr):
-            query(query), query_len(query_len), target(target), target_len(target_len), type(type), match(match), 
-            mismatch(mismatch), gap(gap), cigar(cigar), target_begin(target_begin), 
-            mainMatrix((query_len + 1), std::vector<Cell>(target_len + 1, { 0, Operation::sNone }))
-        {};
-    private:
         //generates cigar string
-        string generateCigar(int maxRow, int maxColumn, string initialVal, std::vector<std::vector<Cell>> mainMatrix) {
+        string Alignment::generateCigar(int maxRow, int maxColumn, string initialVal, std::vector<std::vector<Cell>> mainMatrix) {
             for (int i = maxRow; i >= 0; i--) {
                 for (int j = maxColumn; j >= 0; j--) {
                     switch (mainMatrix[i][j].op) {
@@ -83,11 +63,11 @@ namespace orange
             result += (char)counter + letter;
             return result;
         }
-        void calculateMax(int i, int j, const char* query,
-            const char* target, AlignmentType type,
+        void Alignment::calculateMax(int i, int j, const char* query,
+            const char* target, orange::AlignmentType type,
             int match,
             int mismatch,
-            int gap, vector<vector<Cell>> mainMatrix)
+            int gap, std::vector<std::vector<Cell>> mainMatrix)
         {
             Cell minCell = { numeric_limits<int>::min(), sNone };
             int maxColumnIndex;
@@ -119,15 +99,15 @@ namespace orange
             mainMatrix[i][j] = std::max({ minCell, diagonal, up, left },
                 [](Cell a, Cell b) { return a.value < b.value; });
         }
-        int Align(
+        int Alignment::Align(
             const char* query, unsigned int query_len,
             const char* target, unsigned int target_len,
             orange::AlignmentType type,
             int match,
             int mismatch,
             int gap,
-            std::string* cigar = nullptr,
-            unsigned int* target_begin = nullptr)
+            std::string* cigar,
+            unsigned int* target_begin)
         {
             int alignmentScore;
             
@@ -219,5 +199,5 @@ namespace orange
             }
             return maxValue;
         }
-    };
+//};
 }

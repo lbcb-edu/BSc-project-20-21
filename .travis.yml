@@ -48,4 +48,4 @@ language: cpp
         - mkdir build
         -cmake ..
         -make
-        - ./bin/orange_mapper_test
+        - ./test/orange_mapper_test
