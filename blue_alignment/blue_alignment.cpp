@@ -61,7 +61,7 @@ class Aligner {
       int i = query_len;
       int j = target_len;
       *cigar = CigarCreator(i, j, initial_cigar);
-      *target_begin = 1;
+      if (target_begin) *target_begin = 1;
     }
 
     return matrix_[query_len][target_len].value;
@@ -140,7 +140,7 @@ class Aligner {
     if (i != 0) {
       cigar_result = std::to_string(i) + "S" + cigar_result;
     }
-    *target_begin = j + 1;
+    if (target_begin) *target_begin = j + 1;
     *cigar = cigar_result;
   }
 
