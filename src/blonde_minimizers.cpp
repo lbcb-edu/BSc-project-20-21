@@ -41,13 +41,13 @@ void load_next_base(const char base, unsigned int kmer_len, unsigned int lengthw
     kmer |= base_mask;
     kmer &= lengthwise_mask;
 
-    comp_base_mask <<= kmer_len * 2;
-    comp_kmer |= comp_base_mask;
     comp_kmer >>= 2;
+    comp_base_mask <<= (kmer_len - 1) * 2;
+    comp_kmer |= comp_base_mask;
 }
 
 std::vector<Kmer> get_all_kmers(const char* sequence, unsigned int sequence_len, unsigned int kmer_len) {
-    if (kmer_len > 16) throw "only offers support for 1-16 mers"; // jer za svaki nukleotid koristimo 2 bita a int imma 32 bita
+    if (kmer_len > 16 || kmer_len < 1) throw "only offers support for 1-16 mers"; // jer za svaki nukleotid koristimo 2 bita a int imma 32 bita
     if (kmer_len > sequence_len) throw "kmer length longer than sequence!";
     
     std::vector<Kmer> result;
