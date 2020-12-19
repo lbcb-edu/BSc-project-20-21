@@ -3,10 +3,14 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <fstream>
+#include <unordered_map>
+#include <set>
+#include <tuple>
 #include "fasta_parser.hpp"
 #include "fastq_parser.hpp"
 #include "sequence.hpp"
 #include "pink_alignment.hpp"
+#include "pink_minimizers.hpp"
 #include "Pink_mapperConfig.h"
 using namespace std;
 using namespace pink;
@@ -17,11 +21,99 @@ static int align_flag;
 static int match_flag;
 static int mismatch_flag;
 static int gap_flag;
+static int frequency_flag;
+static int klength_flag;
+static int wlength_flag;
+
+bool cmp(pair<unsigned int, unsigned int>& a,
+		pair<unsigned int, unsigned int>& b){
+		return a.second > b.second;
+}
+
+void cutoff(unordered_map<unsigned int, unsigned int>& m, float f){
+	vector<pair<unsigned int,unsigned int>> A;
+	for (auto& it: m){
+		A.push_back(it);
+	}
+	sort(A.begin(),A.end(),cmp);
+	int compare = -1;
+	float param = 1.0f/m.size();
+	float count = 0;
+	vector<pair<unsigned int,unsigned int>>::iterator it;
+	for(auto& it: A){
+		cerr << it.first << ' ' << it.second << endl;
+	}
+	for(it=A.begin();it!=A.end();it++){
+		count += param;
+		if(count>=f){
+			do{
+				it++;
+			}while(it->second==prev(it)->second);
+			cerr << "Number of occurences of the most frequent minimizer without top " << f
+				<< " occuring minimizers: "  << (it) -> second << "\n";
+			break;
+		}
+	}
+}
+
+void call_minimizers(float frequency, unsigned int klength, unsigned int wlength,
+					const vector<unique_ptr<biosoup::Sequence>> &ref_list,
+					const vector<unique_ptr<biosoup::Sequence>> &frag_list){
+	vector<tuple<unsigned int,unsigned int, bool>> mins;
+	unordered_map<unsigned int,unsigned int> dist_mins;
+	set<unsigned int> cache_set;
+
+	cerr << "Minimizing refrence genome file...\n";
+	for(int i=0;i<ref_list.size();i++){
+		char seq[ref_list[i] -> data.length() + 1];
+		strcpy(seq, (ref_list[i] -> data).c_str());
+		mins = pink::Minimize(seq, strlen(seq), klength, wlength);
+		for(auto min: mins){
+			if(dist_mins.find(get<0>(min))==dist_mins.end()) dist_mins.insert({get<0>(min),1});
+			else dist_mins[get<0>(min)]++;
+		}
+	}
+	unordered_map<unsigned int, unsigned int>::iterator it;
+	set<unsigned int>::iterator it_set;
+	cerr << "Number of distinctive k-mers: " << dist_mins.size() << "\n\n";
+	cerr << "Fraction of singletons:\n";
+	for(it=dist_mins.begin();it!=dist_mins.end();it++){
+		if(it->second == 1) cerr << it->first <<"\n";
+	}
+	cutoff(dist_mins,frequency);
+	dist_mins.clear();
+	cache_set.clear();
+	cerr << "\nMinimizing fragments genome file...\n";
+	for(int i=0;i<frag_list.size();i++){
+		//cerr << "Minimizing sequence: " << i << "\n"; 
+		char seq[frag_list[i] -> data.length() + 1];
+		strcpy(seq, (frag_list[i] -> data).c_str());
+		mins = pink::Minimize(seq, sizeof(seq)-1, klength, wlength);
+		for(auto min: mins){
+			//cout << get<0>(min) << " " << get<1>(min) << " " << get<2>(min) << endl;
+			if(cache_set.find(get<0>(min))==cache_set.end()){
+				cache_set.insert(get<0>(min));
+			}
+		}
+		for(it_set=cache_set.begin();it_set!=cache_set.end();it_set++){
+			if(dist_mins.find(*it_set)==dist_mins.end()) dist_mins.insert({*it_set,1});
+			else dist_mins[*it_set]++;
+		}
+	}
+	cerr << "\nNumber of distinctive k-mers: " << dist_mins.size() << "\n\n";
+
+	cerr << "Fraction of singletons:\n";
+	for(it=dist_mins.begin();it!=dist_mins.end();it++){
+		if(it->second == 1) cerr << it->first << "\n";	
+	}
+	cerr << "\n";
+	cutoff(dist_mins,frequency);
+	
+}
 
 int call_align(string type, int match, int mismatch, int gap, int size, const vector<unique_ptr<biosoup::Sequence>> &list){
 	time_t t;
 	srand((unsigned) time(&t));
-	cerr << type << " " << match << " " << mismatch << " " << gap << endl;
 	//assign alignment type 
 	AlignmentType a_type;
 	if(type == "global") a_type = global;
@@ -48,27 +140,26 @@ int call_align(string type, int match, int mismatch, int gap, int size, const ve
 	char target[list[t_index] -> data.length() + 1];
 	strcpy(target, (list[t_index] -> data).c_str());
 
+	cerr << "Aligning sequences:\n" << list[q_index] -> name << "\n" << list[t_index] -> name << "\n\n";
+	cerr << "Alignmet type: " << type << "\n" << "Match: " << match << "\n"
+		<< "Mismatch: " << mismatch << "\n" << "Gap: " << gap << "\n\n";
 	int result = Align(query, list[q_index] -> data.length(),
 			target, list[t_index] -> data.length(),
 			a_type,
 			match, mismatch, gap);
 
-	cout << "alignment score: " << result << "\n"; 
+	cerr << "alignment score: " << result << "\n\n"; 
 	return result;
 }
 
 void printHelpMessage(){
-    	string line;
-  	ifstream myfile ("help.txt");
-  	if (myfile.is_open()){
-    		while ( getline (myfile,line) ){
-      			cout << line << '\n';
-    		}
-    		myfile.close();
-  	}
-
-  	else cout << "Unable to open file"; 
-
+	char help[] = {
+	#include "help.txt"
+	};
+	for(int i=0;true;i++){
+		if(help[i] == '\0') break;
+		cout << help[i];
+	}
   	exit(0);
 }
 
@@ -121,7 +212,7 @@ void N50_length(const vector<unique_ptr<biosoup::Sequence>> &list){
 		i += 1;
 	}
 	int N50 = len_array[i-1];
-	cerr << "N50 fragments length: " << N50 << "\n";
+	cerr << "N50 fragments length: " << N50 << "\n\n";
 	delete len_array;
 	return;
 }
@@ -163,6 +254,8 @@ int main(int argc, char **argv){
     
 	
     int match = 0, mismatch = 1, gap = 1;
+    float frequency = 0.001;
+	unsigned int klength = 15, wlength = 5;  
     string type = "global";
 
 	//parse program options and their arguments
@@ -176,10 +269,13 @@ int main(int argc, char **argv){
                 {"match", required_argument, &match_flag, 1},
                 {"mismatch", required_argument, &mismatch_flag, 1},
                 {"gap", required_argument, &gap_flag, 1},
+                {"frequency", required_argument, &frequency_flag, 1},
+                {"klength", required_argument, &klength_flag, 1},
+                {"wlength", required_argument, &wlength_flag, 1},
                 {0, 0, 0, 0}
             };
         int option_index = 0;
-        c = getopt_long(argc, argv, "hva:m:n:g:", long_options, &option_index);
+        c = getopt_long(argc, argv, "hva:m:n:g:f:k:w:", long_options, &option_index);
         if(c == -1){
             break;
         }
@@ -205,6 +301,15 @@ int main(int argc, char **argv){
             break;
         case 'g':
             gap = atoi(optarg);
+            break;
+        case 'f':
+            frequency = atof(optarg);
+            break;
+        case 'k':
+            klength = atoi(optarg);
+            break;
+        case 'w':
+            wlength = atoi(optarg);
             break;
         case '?':
             break;
@@ -253,6 +358,7 @@ int main(int argc, char **argv){
         frag_number(ss);
         frag_stats(ss);
         N50_length(ss);
+		call_minimizers(frequency,klength,wlength,s,ss);
     }
     return 0;
 }
