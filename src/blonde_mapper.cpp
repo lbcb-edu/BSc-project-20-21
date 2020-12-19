@@ -9,7 +9,7 @@
 #include "blonde_alignment.h"
 #include "blonde_minimizers.h"
 
-#define VERSION "v0.1.1"
+#define VERSION "v0.1.2"
 
 namespace blonde {
 
