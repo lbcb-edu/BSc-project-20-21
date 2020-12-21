@@ -4,7 +4,7 @@
 #include <algorithm>
 using namespace std;
 
-namespace pink{
+namespace pink {
 
 struct kmer{
     unsigned long int current_kmer = 0;
@@ -55,7 +55,7 @@ tuple<unsigned int, unsigned int, bool> findMinimizers(unsigned long int orig, u
 }
 
 tuple<unsigned int, unsigned int, bool> findEndMinimizers(unsigned long int orig, unsigned long int revComp, unsigned int sequence_len, 
-    unsigned int kmer_len, unsigned int window_len, unsigned long int len, unsigned int mask, bool begin){
+    unsigned int kmer_len, unsigned int window_len, unsigned long int len, unsigned long int mask, bool begin){
 
         tuple<unsigned int, unsigned int, bool> endMinimizer;
         kmer origKmer;
@@ -63,8 +63,8 @@ tuple<unsigned int, unsigned int, bool> findEndMinimizers(unsigned long int orig
 
         if(begin){ //find minimizers at the beginning
             for(int i = 0; i < (len - kmer_len + 1); i++){
-                origKmer.current_kmer = (orig & (mask << (len - kmer_len + i) * 2)) >> ((len - kmer_len + i) * 2);
-                revKmer.current_kmer = (revComp & (mask << (len - kmer_len + i) * 2)) >> ((len - kmer_len + i) * 2);
+                origKmer.current_kmer = (orig & (mask << (len - kmer_len - i) * 2)) >> ((len - kmer_len - i) * 2);
+                revKmer.current_kmer = (revComp & (mask << (len - kmer_len - i) * 2)) >> ((len - kmer_len - i) * 2);
                 if(i == 0){
                     origKmer.last_kmer = origKmer.current_kmer;
                     revKmer.last_kmer = revKmer.current_kmer;
@@ -90,8 +90,8 @@ tuple<unsigned int, unsigned int, bool> findEndMinimizers(unsigned long int orig
             orig = orig & maskEnd;
             revComp = revComp & maskEnd;
             for(int i = 0; i < (len - kmer_len + 1); i++){
-                origKmer.current_kmer = (orig & (mask << (len - kmer_len + i) * 2)) >> ((len - kmer_len + i) * 2);
-                revKmer.current_kmer = (revComp & (mask << (len - kmer_len + i) * 2)) >> ((len - kmer_len + i) * 2);
+                origKmer.current_kmer = (orig & (mask << (len - kmer_len - i) * 2)) >> ((len - kmer_len - i) * 2);
+                revKmer.current_kmer = (revComp & (mask << (len - kmer_len - i) * 2)) >> ((len - kmer_len - i) * 2);
                 if(i == 0){
                     origKmer.last_kmer = origKmer.current_kmer;
                     revKmer.last_kmer = revKmer.current_kmer;
@@ -173,6 +173,7 @@ vector<tuple<unsigned int, unsigned int, bool>> Minimize(
         return minimizers;
 };
 } //namespace pink
+
 //int main(){
 //    vector<tuple<unsigned int, unsigned int, bool>> mins;
 
@@ -200,8 +201,8 @@ vector<tuple<unsigned int, unsigned int, bool>> Minimize(
     /* char sequence[] = {'A','G','C','T','T','T','T','C','A','T','T','C','T','G','A','C','T','G','C','A','A','C','G','G','G','C','A','A','T','A','T','G','T','C','T','C','T','G','T','G','T','G','G','A','T','T','A','A','A','A','A','A','A','G','A','G','T','G','T','C','T','G','A','T','A','G','C','A','G','C','T','T','C','T','G','A','A','C','T','G'};
     mins = Minimize(sequence, sizeof(sequence), 15, 5); */
 
-/*    for(auto min : mins){
-        cout << get<0>(min) << " " << get<1>(min) << " " << get<2>(min) << endl;
-    }
-    return 0;
-}*/
+//    for(auto min : mins){
+//        cout << get<0>(min) << " " << get<1>(min) << " " << get<2>(min) << endl;
+//    }
+//    return 0;
+//}
