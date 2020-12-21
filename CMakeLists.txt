@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.12)
-project (blue_mapper VERSION 0.8.2)
+project (blue_mapper VERSION 0.8.3)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,7 +33,6 @@ if (blue_alignment_build_tests)
   add_executable(${PROJECT_NAME}_alignment_test
     test/blue_alignment_test.cpp
   )
-  target_include_directories(${PROJECT_NAME}_alignment_test PUBLIC "${PROJECT_SOURCE_DIR}/blue_alignment")
   target_link_libraries(${PROJECT_NAME}_alignment_test PUBLIC blue_alignment GTest::Main)
   
 endif()
@@ -45,7 +44,6 @@ if (blue_minimizers_build_tests)
   add_executable(${PROJECT_NAME}_minimizers_test
     test/blue_minimizers_test.cpp
   )
-  target_include_directories(${PROJECT_NAME}_minimizers_test PUBLIC "${PROJECT_SOURCE_DIR}/blue_minimizers")
   target_link_libraries(${PROJECT_NAME}_minimizers_test PUBLIC blue_minimizers GTest::Main)
   
 endif()
