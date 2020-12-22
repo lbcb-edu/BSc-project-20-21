@@ -240,7 +240,7 @@ int main(int argc, char* argv[]) {
                     << "    Alignment score: " << result << std::endl
                     << "    Cigar string of alignment: " << cigar << std::endl
                     << "    Begining of alignemnt is on position " << target_begin << " of target genom." << std::endl;
-        
+        /**
         std::map<int, int> minimizers_map;
         int sum = 0;
 
@@ -273,7 +273,7 @@ int main(int argc, char* argv[]) {
 
         std::cerr << "Total number of minimizers found is: " << sum << std::endl;
          //TODO ispisati najcesce bez prvih f i jedinstvene
-
+        **/
         char sequence[referenceGenom[0]->sequenceSequence.length()+1];
         strcpy(sequence, referenceGenom[0]->sequenceSequence.c_str());
         std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers=
@@ -308,7 +308,7 @@ int main(int argc, char* argv[]) {
                 break;
             }
         }
-        std::cout << numOfMinimizers << " " << fractionOfSingletons << " " << fthMinimizer << std::endl;
+        std::cerr << numOfMinimizers << " " << fractionOfSingletons << " " << fthMinimizer << std::endl;
         
         
         
