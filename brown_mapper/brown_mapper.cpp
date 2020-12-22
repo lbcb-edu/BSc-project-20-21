@@ -174,7 +174,7 @@ int main(int argc, char* argv[]) {
             file1.compare(file1.length() - 4, 4, ".ffn") == 0 ||
             file1.compare(file1.length() - 4, 4, ".faa") == 0 ||
             file1.compare(file1.length() - 4, 4, ".frn") == 0) {
-                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[1]);
+                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind++]);
                 referenceGenom = p->Parse(-1);                
         } else {
             std::cerr << "First file needs to be in FASTA format!" << std::endl;
@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
         std::vector<std::unique_ptr<Sequence>> fragments;
         if ((file2.compare(file2.length() - 6, 6, ".fastq") == 0 ||
             file2.compare(file2.length() - 3, 3, ".fq") == 0)) {
-                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(argv[2]);
+                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(argv[optind]);
                 std::uint32_t chunk_size = 500 * 1024 * 1024;  // 500 MB
                 for (auto t = p->Parse(chunk_size); !t.empty(); t = p->Parse(chunk_size)) {
                     fragments.insert(
@@ -198,7 +198,7 @@ int main(int argc, char* argv[]) {
             file2.compare(file2.length() - 4, 4, ".ffn") == 0 ||
             file2.compare(file2.length() - 4, 4, ".faa") == 0 ||
             file2.compare(file2.length() - 4, 4, ".frn") == 0) {
-                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[2]);
+                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind]);
                 fragments = p->Parse(-1);
         } else {
             std::cerr << "Second file needs to be in FASTA or FASTQ format!" << std::endl;
@@ -206,6 +206,7 @@ int main(int argc, char* argv[]) {
         }
 
         std::cerr << genomLine;
+        std::cout << "velicina vektora referentnog genoma: " << referenceGenom.size() << std::endl;
         std::cerr << "Reference genom name: " << referenceGenom.front()->sequenceName << std::endl;
         std::cerr << "Reference genom length: "<< referenceGenom.front()->sequenceSequence.length() << std::endl;
         
@@ -229,11 +230,49 @@ int main(int argc, char* argv[]) {
             fragment_postion2 = rand() % fragments.size();
         } while (referenceGenom[fragment_postion2]->sequenceSequence.length() < 5000);
 
-        /*int result = brown::Align(fragments[fragment_postion1]->sequenceSequence.c_str(), 
+        int result = brown::Align(fragments[fragment_postion1]->sequenceSequence.c_str(), 
                                     fragments[fragment_postion1]->sequenceSequence.length(),
                                     fragments[fragment_postion2]->sequenceSequence.c_str(), 
                                     fragments[fragment_postion2]->sequenceSequence.length(),
-                                    type, match, mismatch, gap, &cigar, &target_begin);*/
+                                    type, match, mismatch, gap, &cigar, &target_begin);
+        
+        std::cerr << std::endl << "Alignment results for two randomly chossen genom fragments in second file: " << std::endl
+                    << "    Alignment score: " << result << std::endl
+                    << "    Cigar string of alignment: " << cigar << std::endl
+                    << "    Begining of alignemnt is on position " << target_begin << " of target genom." << std::endl;
+        
+        std::map<int, int> minimizers_map;
+        int sum = 0;
+
+        for (int i = 0; i < referenceGenom.size(); i++) {
+            std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers_vector = brown::Minimize(
+                                                                                            referenceGenom[i]->sequenceSequence.c_str(),
+                                                                                            referenceGenom[i]->sequenceSequence.length(),
+                                                                                            kmer_length, window_length);
+            for (int j = 0; j < minimizers_vector.size(); j++) {
+                if (minimizers_map.find(std::get<0>(minimizers_vector[j])) == minimizers_map.end()) 
+                    minimizers_map[std::get<0>(minimizers_vector[j])] = 0;
+                else 
+                    minimizers_map[std::get<0>(minimizers_vector[j])]++;            
+            }
+            sum += minimizers_vector.size();
+        }
+        for (int i = 0; i < fragments.size(); i++) {
+            std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers_vector = brown::Minimize(
+                                                                                            fragments[i]->sequenceSequence.c_str(),
+                                                                                            fragments[i]->sequenceSequence.length(),
+                                                                                            kmer_length, window_length);
+            for (int j = 0; j < minimizers_vector.size(); j++) {
+                if (minimizers_map.find(std::get<0>(minimizers_vector[j])) == minimizers_map.end()) 
+                    minimizers_map[std::get<0>(minimizers_vector[j])] = 0;
+                else 
+                    minimizers_map[std::get<0>(minimizers_vector[j])]++;            
+            }
+            sum += minimizers_vector.size();
+        }
+
+        std::cerr << "Total number of minimizers found is: " << sum << std::endl;
+         //TODO ispisati najcesce bez prvih f i jedinstvene
 
         char sequence[referenceGenom[0]->sequenceSequence.length()+1];
         strcpy(sequence, referenceGenom[0]->sequenceSequence.c_str());

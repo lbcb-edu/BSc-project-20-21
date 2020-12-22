@@ -17,3 +17,11 @@ if (NOT TARGET bioparser)
 endif ()
 
 target_link_libraries(brown_mapper bioparser brown_align brown_minim)
+
+option(align_tests "Align tests" ON)
+if (align_tests)
+  enable_testing()
+  find_package(GTest REQUIRED)
+  add_executable(brown_mapper_test tests/brown_align_tests.cpp)
+  target_link_libraries(brown_mapper_test PUBLIC brown_align GTest::Main)
+endif()
