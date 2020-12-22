@@ -4,8 +4,10 @@
 #include "bioparser/include/bioparser/fastq_parser.hpp"
 #include "bioparser/include/bioparser/fasta_parser.hpp"
 #include "brown_alignment.hpp"
+#include "brown_minimizer.hpp"
 #include <stdlib.h>
 #include <time.h>
+#include <map>
 
 #define VERSION "v0.5"
 #define DEFAULT_KMER_LENGTH 15
@@ -233,10 +235,46 @@ int main(int argc, char* argv[]) {
                                     fragments[fragment_postion2]->sequenceSequence.length(),
                                     type, match, mismatch, gap, &cigar, &target_begin);*/
 
+        char sequence[referenceGenom[0]->sequenceSequence.length()+1];
+        strcpy(sequence, referenceGenom[0]->sequenceSequence.c_str());
+        std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers=
+        brown::Minimize(sequence, referenceGenom[0]->sequenceSequence.length()+1 , kmer_length, window_length);
+        int id=1; // na kraju ce biti broj razlicitih minimizera
+        int size=minimizers.size();
+        std::map<int, int> mapaMinimizera; //prvo minimizer, pa koliko se pojavljuje
+        for(int i=0;i<size;i++) {
+            int currentMinimizer=std::get<0>(minimizers[i]);
+            if(mapaMinimizera.count(currentMinimizer) == 0) {
+                mapaMinimizera.insert(std::pair<int,int>(currentMinimizer, 1));
+            }
+            else {
+                mapaMinimizera[currentMinimizer]++;
+            }
+        }
+        int numOfMinimizers=mapaMinimizera.size();
+        int numOfSingletons=0;
+        int fthMinimizer;
+        std::map<int, int>::iterator itr;
+        std::multimap<int, int> mapByFrequency;
+        for(itr = mapaMinimizera.begin(); itr != mapaMinimizera.end(); itr++) {
+            if(itr->second == 1) numOfSingletons++;
+            mapByFrequency.insert(std::pair<int, int>(itr->second, itr->first));
+        }
+        double fractionOfSingletons=(double) numOfSingletons/size;
+        size=mapByFrequency.size();
+        int counter=0;
+        for(itr = mapByFrequency.begin(); itr != mapByFrequency.end(); itr++) {
+            if (counter == size - frequency -1) {
+                fthMinimizer = itr->second;
+                break;
+            }
+        }
+        std::cout << numOfMinimizers << " " << fractionOfSingletons << " " << fthMinimizer << std::endl;
         
-
+        
+        
     }
-
+    
     
 
 
