@@ -51,7 +51,7 @@ namespace brown {
                         fraction = (char*) malloc(fraction_length + 1);
                         strncpy(fraction, sequence, fraction_length);
                         fraction[fraction_length] = '\0';
-                        
+
                         for (int j = 0; j + kmer_len <= fraction_length; j++) {
                             char *kmer = (char*) malloc(kmer_len + 1);
                             strncpy(kmer, fraction + j, kmer_len);
@@ -73,7 +73,7 @@ namespace brown {
 
                     //obicni minimizeri
                     fraction_length = kmer_len + window_len - 1;
-                    for (int i = 0; i < sequence_len - fraction_length - 1; i++) {
+                    for (int i = 0; i < sequence_len - fraction_length; i++) {
                         fraction = (char*) malloc(fraction_length + 1);
                         strncpy(fraction, sequence + i, fraction_length);
                         fraction[fraction_length] = '\0';
@@ -114,7 +114,7 @@ namespace brown {
                             int kmerValue = kmerValueReverse < kmerValueNoReverse ? kmerValueReverse : kmerValueNoReverse;
                             if (j == 0 || kmerValue < minimizerValue) {
                                 minimizerValue = kmerValue;
-                                minimizerPosition = j;
+                                minimizerPosition = sequence_len - 1 - fraction_length + j;
                                 origin = kmerValueReverse < kmerValueNoReverse ? false : true;
                             }
                             free(kmer);

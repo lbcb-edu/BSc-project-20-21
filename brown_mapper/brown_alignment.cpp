@@ -129,7 +129,7 @@ namespace brown {
                     }
             }
 
-            if(target_begin != nullptr) {
+            if(target_begin != nullptr) { //o ovome jos malo razmislit za semiglobal
                     if (type == GLOBAL) *target_begin = 0;
                     else if (type == SEMIGLOBAL) *target_begin = resultColumn;
                     else *target_begin = resultColumn;
