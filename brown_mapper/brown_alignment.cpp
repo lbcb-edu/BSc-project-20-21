@@ -94,15 +94,15 @@ namespace brown {
             int returnColumn = resultColumn;
             
             std::string cigarBeta = "";
-            int targetLocal;
+            //int targetLocal;
             if (cigar != nullptr || target_begin !=nullptr) {
                 
                     while((type==GLOBAL && (resultRow != 0 && resultColumn != 0)) || 
                             (type==SEMIGLOBAL && (resultRow != 0 || resultColumn != 0)) ||
                             (type==LOCAL && m[resultRow][resultColumn] != 0)) {
 
-                        if(!(resultRow == 0 || resultColumn == 0)) {  //ovo i dalje ne valja
-                            if (type == LOCAL) targetLocal = resultColumn;
+                        if(!(resultRow == 0 || resultColumn == 0)) { 
+                            //if (type == LOCAL) targetLocal = resultColumn;
                             if (m[resultRow-1][resultColumn-1] + match == m[resultRow][resultColumn]) {
                                 cigarBeta += "M";
                                 resultColumn--;
@@ -121,7 +121,7 @@ namespace brown {
                         }
 
                         if (resultColumn != 0 &&  m[resultRow][resultColumn-1] + gap == m[resultRow][resultColumn]) {
-                            if (type == LOCAL) targetLocal = resultColumn;
+                            //if (type == LOCAL) targetLocal = resultColumn;
                             cigarBeta += "I";
                             resultColumn--;
                         }
@@ -132,7 +132,7 @@ namespace brown {
             if(target_begin != nullptr) {
                     if (type == GLOBAL) *target_begin = 0;
                     else if (type == SEMIGLOBAL) *target_begin = resultColumn;
-                    else *target_begin = targetLocal;
+                    else *target_begin = resultColumn;
             }
 
             if(cigar != nullptr) {
