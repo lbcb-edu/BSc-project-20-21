@@ -66,18 +66,20 @@ namespace brown {
                             }
                             free(kmer);
                         }
-                        std::tuple<unsigned int, unsigned int, bool> tuple(minimizerValue, minimizerPosition, origin); 
-                        minimizers.push_back(tuple);
+                        if (std::get<1>(minimizers[minimizers.size() - 1]) != minimizerPosition) {
+                            std::tuple<unsigned int, unsigned int, bool> tuple = std::make_tuple(minimizerValue, minimizerPosition, origin); 
+                            minimizers.push_back(tuple);
+                        }
                         free(fraction);
                     }
 
-                    //obicni minimizeri
-                    fraction_length = kmer_len + window_len - 1;
+                    fraction_length = window_len + kmer_len - 1;
                     for (int i = 0; i < sequence_len - fraction_length; i++) {
                         fraction = (char*) malloc(fraction_length + 1);
                         strncpy(fraction, sequence + i, fraction_length);
                         fraction[fraction_length] = '\0';
-
+                       
+                        
                         for (int j = 0; j + kmer_len < fraction_length; j++) {
                             char *kmer = (char*) malloc(kmer_len + 1);
                             strncpy(kmer, fraction + j, kmer_len);
@@ -92,6 +94,7 @@ namespace brown {
                             }
                             free(kmer);
                         }
+                       
 
                         std::tuple<unsigned int, unsigned int, bool> tuple(minimizerValue, minimizerPosition, origin); 
                         minimizers.push_back(tuple);

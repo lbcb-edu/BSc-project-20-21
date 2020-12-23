@@ -156,6 +156,7 @@ namespace brown {
                 cigar->append(std::to_string(counter));
                 cigar->append(std::string (1, current));
             }
+            delete(m);
         
             return m[returnRow][returnColumn];
     }

@@ -276,13 +276,15 @@ int main(int argc, char* argv[]) {
         **/
         char sequence[referenceGenom[0]->sequenceSequence.length()+1];
         strcpy(sequence, referenceGenom[0]->sequenceSequence.c_str());
-        std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers=
-        brown::Minimize(sequence, referenceGenom[0]->sequenceSequence.length()+1 , kmer_length, window_length);
+    
+        std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers = brown::Minimize(
+                                                                    sequence, referenceGenom[0]->sequenceSequence.length()+1 , 
+                                                                    kmer_length, window_length);
         int id=1; // na kraju ce biti broj razlicitih minimizera
-        int size=minimizers.size();
+        int size = minimizers.size();
         std::map<int, int> mapaMinimizera; //prvo minimizer, pa koliko se pojavljuje
-        for(int i=0;i<size;i++) {
-            int currentMinimizer=std::get<0>(minimizers[i]);
+        for(int i = 0 ;i < size; i++) {
+            int currentMinimizer = std::get<0>(minimizers[i]);
             if(mapaMinimizera.count(currentMinimizer) == 0) {
                 mapaMinimizera.insert(std::pair<int,int>(currentMinimizer, 1));
             }
@@ -290,8 +292,8 @@ int main(int argc, char* argv[]) {
                 mapaMinimizera[currentMinimizer]++;
             }
         }
-        int numOfMinimizers=mapaMinimizera.size();
-        int numOfSingletons=0;
+        int numOfMinimizers = mapaMinimizera.size();
+        int numOfSingletons = 0;
         int fthMinimizer;
         std::map<int, int>::iterator itr;
         std::multimap<int, int> mapByFrequency;
@@ -299,9 +301,9 @@ int main(int argc, char* argv[]) {
             if(itr->second == 1) numOfSingletons++;
             mapByFrequency.insert(std::pair<int, int>(itr->second, itr->first));
         }
-        double fractionOfSingletons=(double) numOfSingletons/size;
-        size=mapByFrequency.size();
-        int counter=0;
+        double fractionOfSingletons = ((double) numOfSingletons)/size;
+        size = mapByFrequency.size();
+        int counter = 0;
         for(itr = mapByFrequency.begin(); itr != mapByFrequency.end(); itr++) {
             if (counter == size - frequency -1) {
                 fthMinimizer = itr->second;
