@@ -36,7 +36,7 @@ void Help() {
                "  <reference-genome>\treference genome in FASTA format"
                " (can be compressed with gzip)\n"
                "  <fragments>       \tset of fragments in FASTA/FASTQ format"
-               "(can be compressed with gzip)\n"
+               " (can be compressed with gzip)\n"
                "\n"
                "  options:\n"
                "    -a, --algorithm <int>\n"
@@ -149,13 +149,43 @@ void PrintStats(const std::vector<std::unique_ptr<Sequence>>& fragments) {
             << "  Maximal Length:      " << lengths[0] << "\n\n";
 }
 
+void MinimizerStats(std::vector<std::unique_ptr<Sequence>>& sequences,
+                    int8_t kmer_len, int8_t window_len,
+                    double ignored_fraction) {
+  std::unordered_map<unsigned int, unsigned int> minimizer_count;
+
+  for (auto& seq : sequences) {
+    auto minimizers = blue::Minimize(seq->data_.c_str(), seq->data_.size(),
+                                     kmer_len, window_len);
+
+    for (auto kmer : minimizers) minimizer_count[std::get<0>(kmer)]++;
+  }
+
+  std::vector<unsigned int> counts;
+  counts.reserve(minimizer_count.size());
+
+  unsigned int singletons = 0;
+  for (auto pair : minimizer_count) {
+    if (pair.second == 1) singletons++;
+    counts.push_back(pair.second);
+  }
+  std::sort(counts.begin(), counts.end());
+
+  unsigned int ignore_size = ignored_fraction * counts.size();
+  std::cout << "  Number of distinct minimizers: " << minimizer_count.size()
+            << '\n'
+            << "  Fraction of singletons:        "
+            << singletons / (double)minimizer_count.size() << '\n'
+            << "  Number of occurrences of the most frequent minimizer: "
+            << counts[counts.size() - ignore_size - 1] << "\n\n";
+}
+
 template <template <class> class T>
 std::vector<std::unique_ptr<Sequence>> Parse(const std::string& file) {
   return bioparser::Parser<Sequence>::Create<T>(file)->Parse(-1);
 }
 
 int main(int argc, char* argv[]) {
-  int opt;
   int8_t match_cost = 5;
   int8_t mismatch_cost = -4;
   int8_t gap_cost = -8;
@@ -166,6 +196,7 @@ int main(int argc, char* argv[]) {
       0.001;  // fraction of most frequent minimizers to be ignored
 
   const char* opt_string = "a:m:n:g:k:w:f:hv";
+  int opt;
   while ((opt = getopt_long(argc, argv, opt_string, options, nullptr)) != -1) {
     switch (opt) {
       case 'a': algorithm = atoi(optarg); break;
@@ -195,13 +226,12 @@ int main(int argc, char* argv[]) {
   std::string fragments_file = argv[optind + 1];
 
   std::vector<std::unique_ptr<Sequence>> fragments;
-  std::unique_ptr<Sequence> reference;
+  std::vector<std::unique_ptr<Sequence>> reference;
 
   std::cout << "Parsing..." << std::endl;
   try {
     if (IsFasta(reference_file)) {
-      reference =
-          std::move(Parse<bioparser::FastaParser>(reference_file).front());
+      reference = Parse<bioparser::FastaParser>(reference_file);
     } else {
       InvalidExtension(reference_file);
       return 1;
@@ -221,9 +251,11 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::cerr << "Reference genome\n"
-            << "  Name:   " << reference->name_ << '\n'
-            << "  Length: " << reference->data_.size() << "\n\n";
+  std::cerr << "Reference genome\n";
+  for (auto& ref : reference) {
+    std::cerr << "  Name:   " << ref->name_ << '\n'
+              << "  Length: " << ref->data_.size() << "\n\n";
+  }
 
   PrintStats(fragments);
 
@@ -258,38 +290,10 @@ int main(int argc, char* argv[]) {
             << "  CIGAR: " << cigar << "\n\n";
 
   // MINIMIZER STATS
-  std::cout << "Computing minimizers...\n";
-  std::unordered_map<unsigned int, unsigned int> minimizers;
-
-  unsigned int non_singletons = 0;
-  for (auto kmer :
-       blue::Minimize(reference->data_.c_str(), reference->data_.size(),
-                      kmer_len, window_len)) {
-    if (minimizers.count(std::get<0>(kmer))) non_singletons++;
-    minimizers[std::get<0>(kmer)]++;
-  }
-
-  for (auto& fragment : fragments)
-    for (auto kmer :
-         blue::Minimize(fragment->data_.c_str(), fragment->data_.size(),
-                        kmer_len, window_len)) {
-      if (minimizers.count(std::get<0>(kmer))) non_singletons++;
-      minimizers[std::get<0>(kmer)]++;
-    }
-
-  std::vector<unsigned int> occurrences;
-  occurrences.reserve(minimizers.size());
-  for (auto pair : minimizers) occurrences.push_back(pair.second);
-  std::sort(occurrences.begin(), occurrences.end());
-
-  unsigned int ignore_size = ignored_fraction * occurrences.size();
-
-  std::cout << "  Number of distinct minimizers: " << minimizers.size() << '\n'
-            << "  Fraction of singletons:        "
-            << (minimizers.size() - non_singletons) / (double)minimizers.size()
-            << '\n'
-            << "  Number of occurrences of the most frequent minimizer: "
-            << occurrences[occurrences.size() - ignore_size - 1] << '\n';
+  std::cout << "Reference minimizers" << std::endl;
+  MinimizerStats(reference, kmer_len, window_len, ignored_fraction);
+  std::cout << "Fragments minimizers" << std::endl;
+  MinimizerStats(fragments, kmer_len, window_len, ignored_fraction);
 
   return 0;
 }
