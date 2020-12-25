@@ -164,7 +164,7 @@ int main(int argc, char* argv[]) {
 
     //std:: cout << "evo me 2" << std::endl;
     if (optind < argc) {
-        std::cout << "ide pravit stringove"<< std::endl;
+        //std::cout << "ide pravit stringove"<< std::endl;
         std::string file1 = argv[optind++];
         std::string file2 = argv[optind];
 
@@ -177,7 +177,7 @@ int main(int argc, char* argv[]) {
             file1.compare(file1.length() - 4, 4, ".frn") == 0) {
                 auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(file1);
                 referenceGenom = p->Parse(-1);    
-                std::cout << "uspjesno je sredio prvi file" << std::endl;            
+                //std::cout << "uspjesno je sredio prvi file" << std::endl;            
         } else {
             std::cerr << "First file needs to be in FASTA format!" << std::endl;
             return 1;
@@ -188,7 +188,7 @@ int main(int argc, char* argv[]) {
             file2.compare(file2.length() - 3, 3, ".fq") == 0) {
                 auto p = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(file2);
                 std::uint32_t chunk_size = 500 * 1024 * 1024;  // 500 MB
-                std::cout << "ude parsirat fragmente" << std::endl;
+                //std::cout << "ude parsirat fragmente" << std::endl;
                 for (auto t = p->Parse(chunk_size); !t.empty(); t = p->Parse(chunk_size)) {
                     fragments.insert(
                         fragments.end(),
@@ -203,7 +203,7 @@ int main(int argc, char* argv[]) {
             file2.compare(file2.length() - 4, 4, ".frn") == 0) {
                 auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind]);
                 fragments = p->Parse(-1);
-                std::cout << "uspjedno je sredio drugi file" << std::endl;
+                //std::cout << "uspjedno je sredio drugi file" << std::endl;
         } else {
             std::cerr << "Second file needs to be in FASTA or FASTQ format!" << std::endl;
             return 1;
@@ -226,7 +226,7 @@ int main(int argc, char* argv[]) {
         unsigned int* target_begin;
         srand(time(0));
         int fragment_postion1, fragment_postion2;
-        std::cout << "ide birat fragmente\n";
+        //std::cout << "ide birat fragmente\n";
         do {
             fragment_postion1 = rand() % fragments.size();
         } while (fragments[fragment_postion1]->sequenceSequence.length() < 5000);
@@ -235,7 +235,7 @@ int main(int argc, char* argv[]) {
             fragment_postion2 = rand() % fragments.size();
         } while (fragments[fragment_postion2]->sequenceSequence.length() < 5000);
 
-        std::cout << "odabro je fragmente" << std::endl;
+        //std::cout << "odabro je fragmente" << std::endl;
         int result = brown::Align(fragments[fragment_postion1]->sequenceSequence.c_str(), 
                                     fragments[fragment_postion1]->sequenceSequence.length(),
                                     fragments[fragment_postion2]->sequenceSequence.c_str(), 
@@ -253,7 +253,7 @@ int main(int argc, char* argv[]) {
                                                                     referenceGenom[i]->sequenceSequence.c_str(), 
                                                                     referenceGenom[i]->sequenceSequence.length()+1 , 
                                                                     kmer_length, window_length);
-            for(unsigned int i = 0 ;i < minimizers.size(); i++) {
+            for(unsigned int i = 0; i < minimizers.size(); i++) {
                 unsigned int currentMinimizer = std::get<0>(minimizers[i]);
                 if(reference_genom_minimizers.count(currentMinimizer) == 0) 
                     reference_genom_minimizers.insert(std::pair<unsigned int,unsigned int>(currentMinimizer, 1));
@@ -299,8 +299,8 @@ int main(int argc, char* argv[]) {
         }
         
         unsigned int fragments_fth_minimizer_index = fragments_multimap.size() - 1 - frequency * fragments_multimap.size();
-        std::cerr << "Total number of distinct minimizers in reference genom: " << fragments_minimizers.size() << "." << std::endl;
-        std::cerr << "The fraction of singletone minimizers in reference genom:  " << ((double) fragments_singletons) / fragments_minimizers.size()
+        std::cerr << "Total number of distinct minimizers in fragments: " << fragments_minimizers.size() << "." << std::endl;
+        std::cerr << "The fraction of singletone minimizers in fragments:  " << ((double) fragments_singletons) / fragments_minimizers.size()
                     << "." << std::endl;
         std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
                     << " frequent minimizers are not taken in account: " << fragments_fth_minimizer_index << std::endl;

@@ -13,15 +13,15 @@ namespace brown {
         int gap,
         std::string* cigar = nullptr,
         unsigned int* target_begin = nullptr) {
-            std::cout << "ide radit align\n";
+            //std::cout << "ide radit align\n";
             
             int resultRow = 0;
             int resultColumn = 0;
-            std::cout << "ide radit align\n";
+            //std::cout << "ide radit align\n";
 
             int m[query_len + 1][target_len + 1];
             
-            std::cout << "ide radit align\n";
+            //std::cout << "ide radit align\n";
             if(type == GLOBAL) {
                 m[0][0]=0;
                 for (int i = 1; i < query_len + 1; i++) {
