@@ -13,30 +13,34 @@ namespace brown {
         int gap,
         std::string* cigar = nullptr,
         unsigned int* target_begin = nullptr) {
+            std::cout << "ide radit align\n";
             
             int resultRow = 0;
             int resultColumn = 0;
+            std::cout << "ide radit align\n";
+
             int m[query_len + 1][target_len + 1];
             
+            std::cout << "ide radit align\n";
             if(type == GLOBAL) {
                 m[0][0]=0;
                 for (int i = 1; i < query_len + 1; i++) {
-                    m[i][0]=i * gap;
+                    m[i][0] = i * gap;
                 }
                 for (int j = 1; j < target_len + 1; j++) {
-                    m[0][j]=j * gap;
+                    m[0][j] = j * gap;
                 }
                 for (int i = 1; i < query_len+1; i++)
                     for (int j = 1; j < target_len+1; j++) {
                         int matchCost;
                         if (query[i - 1] == target[j - 1]) matchCost=m[i-1][j-1] + match;
-                        else matchCost=m[i-1][j-1] + mismatch;
+                        else matchCost = m[i-1][j-1] + mismatch;
                         m[i][j]=std::max(std::max(matchCost, m[i][j-1] + gap), m[i-1][j] + gap);
                         
                     }
                 resultRow = query_len;
                 resultColumn = target_len;
-
+                std::cout << "odradio je global align\n";
             }
             else if (type == LOCAL) {
                 int maxCell = 0;
@@ -156,7 +160,6 @@ namespace brown {
                 cigar->append(std::to_string(counter));
                 cigar->append(std::string (1, current));
             }
-            delete(m);
         
             return m[returnRow][returnColumn];
     }

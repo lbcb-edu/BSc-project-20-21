@@ -9,7 +9,7 @@
 #include <time.h>
 #include <map>
 
-#define VERSION "v0.5"
+#define VERSION "v0.7"
 #define DEFAULT_KMER_LENGTH 15
 #define DEFAULT_WINDOW_LENGTH 5
 #define DEFAULT_MINIMIZER_FREQUENCY 0.001
@@ -27,11 +27,12 @@ static std::string help = "brown_mapper \n"
                             "-m   value for matching\n"
                             "-n   value for mismatching\n"
                             "-g   value for gap\n\n"
-                            "Minimizizer arguments:\n"
+                            "Minimizer arguments:\n"
                             "-k   k-mer length (default: " + std::to_string(DEFAULT_KMER_LENGTH) + ")\n"
                             "-w   window length (default: " + std::to_string(DEFAULT_WINDOW_LENGTH) + ")\n"
-                            "-f   top f frequent minimizers that will not be taken in account (default:" 
-                            + std::to_string(DEFAULT_MINIMIZER_FREQUENCY) + ")\n\n"
+                            "-f   top f frequent minimizers that will not be taken in account (default: " 
+                            + std::to_string(DEFAULT_MINIMIZER_FREQUENCY) + ")\n"
+                            "-a   alignment type (GLOBAL, SEMIGLOBAL or LOCAL)\n\n"
                             "Program accepts two files as floating arguments.\n"
                             "The first file needs to contain a reference genome in FASTA format.\n"
                             "The second file needs to contain a set of fragments\n"
@@ -109,7 +110,7 @@ int main(int argc, char* argv[]) {
     bool type_flag;
 
     int c;
-    while ((c = getopt_long(argc, argv, "m:g:n:a:k::w::f::hv", long_options, 0)) != -1) {
+    while ((c = getopt_long(argc, argv, "m:g:n:a:k:w:f:hv", long_options, 0)) != -1) {
         switch (c){
             case 'h' :
                 std::cerr << help << std::endl;
@@ -163,7 +164,7 @@ int main(int argc, char* argv[]) {
 
     //std:: cout << "evo me 2" << std::endl;
     if (optind < argc) {
-        //std::cout << "ide pravit stringove";
+        std::cout << "ide pravit stringove"<< std::endl;
         std::string file1 = argv[optind++];
         std::string file2 = argv[optind];
 
@@ -174,18 +175,20 @@ int main(int argc, char* argv[]) {
             file1.compare(file1.length() - 4, 4, ".ffn") == 0 ||
             file1.compare(file1.length() - 4, 4, ".faa") == 0 ||
             file1.compare(file1.length() - 4, 4, ".frn") == 0) {
-                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind++]);
-                referenceGenom = p->Parse(-1);                
+                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(file1);
+                referenceGenom = p->Parse(-1);    
+                std::cout << "uspjesno je sredio prvi file" << std::endl;            
         } else {
             std::cerr << "First file needs to be in FASTA format!" << std::endl;
             return 1;
         }
         
         std::vector<std::unique_ptr<Sequence>> fragments;
-        if ((file2.compare(file2.length() - 6, 6, ".fastq") == 0 ||
-            file2.compare(file2.length() - 3, 3, ".fq") == 0)) {
-                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(argv[optind]);
+        if (file2.compare(file2.length() - 6, 6, ".fastq") == 0 ||
+            file2.compare(file2.length() - 3, 3, ".fq") == 0) {
+                auto p = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(file2);
                 std::uint32_t chunk_size = 500 * 1024 * 1024;  // 500 MB
+                std::cout << "ude parsirat fragmente" << std::endl;
                 for (auto t = p->Parse(chunk_size); !t.empty(); t = p->Parse(chunk_size)) {
                     fragments.insert(
                         fragments.end(),
@@ -200,6 +203,7 @@ int main(int argc, char* argv[]) {
             file2.compare(file2.length() - 4, 4, ".frn") == 0) {
                 auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind]);
                 fragments = p->Parse(-1);
+                std::cout << "uspjedno je sredio drugi file" << std::endl;
         } else {
             std::cerr << "Second file needs to be in FASTA or FASTQ format!" << std::endl;
             return 1;
@@ -218,100 +222,88 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
 
-        std::string cigar;
-        unsigned int target_begin;
+        std::string* cigar;
+        unsigned int* target_begin;
         srand(time(0));
         int fragment_postion1, fragment_postion2;
+        std::cout << "ide birat fragmente\n";
         do {
             fragment_postion1 = rand() % fragments.size();
-        } while (referenceGenom[fragment_postion1]->sequenceSequence.length() < 5000);
+        } while (fragments[fragment_postion1]->sequenceSequence.length() < 5000);
 
         do {
             fragment_postion2 = rand() % fragments.size();
-        } while (referenceGenom[fragment_postion2]->sequenceSequence.length() < 5000);
+        } while (fragments[fragment_postion2]->sequenceSequence.length() < 5000);
 
+        std::cout << "odabro je fragmente" << std::endl;
         int result = brown::Align(fragments[fragment_postion1]->sequenceSequence.c_str(), 
                                     fragments[fragment_postion1]->sequenceSequence.length(),
                                     fragments[fragment_postion2]->sequenceSequence.c_str(), 
                                     fragments[fragment_postion2]->sequenceSequence.length(),
-                                    type, match, mismatch, gap, &cigar, &target_begin);
-        
+                                    type, match, mismatch, gap, cigar, target_begin);        
         std::cerr << std::endl << "Alignment results for two randomly chossen genom fragments in second file: " << std::endl
                     << "    Alignment score: " << result << std::endl
                     << "    Cigar string of alignment: " << cigar << std::endl
                     << "    Begining of alignemnt is on position " << target_begin << " of target genom." << std::endl;
-        /**
-        std::map<int, int> minimizers_map;
-        int sum = 0;
-
-        for (int i = 0; i < referenceGenom.size(); i++) {
-            std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers_vector = brown::Minimize(
-                                                                                            referenceGenom[i]->sequenceSequence.c_str(),
-                                                                                            referenceGenom[i]->sequenceSequence.length(),
-                                                                                            kmer_length, window_length);
-            for (int j = 0; j < minimizers_vector.size(); j++) {
-                if (minimizers_map.find(std::get<0>(minimizers_vector[j])) == minimizers_map.end()) 
-                    minimizers_map[std::get<0>(minimizers_vector[j])] = 0;
-                else 
-                    minimizers_map[std::get<0>(minimizers_vector[j])]++;            
-            }
-            sum += minimizers_vector.size();
-        }
-        for (int i = 0; i < fragments.size(); i++) {
-            std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers_vector = brown::Minimize(
-                                                                                            fragments[i]->sequenceSequence.c_str(),
-                                                                                            fragments[i]->sequenceSequence.length(),
-                                                                                            kmer_length, window_length);
-            for (int j = 0; j < minimizers_vector.size(); j++) {
-                if (minimizers_map.find(std::get<0>(minimizers_vector[j])) == minimizers_map.end()) 
-                    minimizers_map[std::get<0>(minimizers_vector[j])] = 0;
-                else 
-                    minimizers_map[std::get<0>(minimizers_vector[j])]++;            
-            }
-            sum += minimizers_vector.size();
-        }
-
-        std::cerr << "Total number of minimizers found is: " << sum << std::endl;
-         //TODO ispisati najcesce bez prvih f i jedinstvene
-        **/
-        char sequence[referenceGenom[0]->sequenceSequence.length()+1];
-        strcpy(sequence, referenceGenom[0]->sequenceSequence.c_str());
-    
-        std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers = brown::Minimize(
-                                                                    sequence, referenceGenom[0]->sequenceSequence.length()+1 , 
-                                                                    kmer_length, window_length);
-        int id=1; // na kraju ce biti broj razlicitih minimizera
-        int size = minimizers.size();
-        std::map<int, int> mapaMinimizera; //prvo minimizer, pa koliko se pojavljuje
-        for(int i = 0 ;i < size; i++) {
-            int currentMinimizer = std::get<0>(minimizers[i]);
-            if(mapaMinimizera.count(currentMinimizer) == 0) {
-                mapaMinimizera.insert(std::pair<int,int>(currentMinimizer, 1));
-            }
-            else {
-                mapaMinimizera[currentMinimizer]++;
-            }
-        }
-        int numOfMinimizers = mapaMinimizera.size();
-        int numOfSingletons = 0;
-        int fthMinimizer;
-        std::map<int, int>::iterator itr;
-        std::multimap<int, int> mapByFrequency;
-        for(itr = mapaMinimizera.begin(); itr != mapaMinimizera.end(); itr++) {
-            if(itr->second == 1) numOfSingletons++;
-            mapByFrequency.insert(std::pair<int, int>(itr->second, itr->first));
-        }
-        double fractionOfSingletons = ((double) numOfSingletons)/size;
-        size = mapByFrequency.size();
-        int counter = 0;
-        for(itr = mapByFrequency.begin(); itr != mapByFrequency.end(); itr++) {
-            if (counter == size - frequency -1) {
-                fthMinimizer = itr->second;
-                break;
-            }
-        }
-        std::cerr << numOfMinimizers << " " << fractionOfSingletons << " " << fthMinimizer << std::endl;
+       
         
+        std::map<unsigned int, unsigned int> reference_genom_minimizers;
+        for (unsigned int i = 0; i < referenceGenom.size(); i++) {
+            std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers = brown::Minimize(
+                                                                    referenceGenom[i]->sequenceSequence.c_str(), 
+                                                                    referenceGenom[i]->sequenceSequence.length()+1 , 
+                                                                    kmer_length, window_length);
+            for(unsigned int i = 0 ;i < minimizers.size(); i++) {
+                unsigned int currentMinimizer = std::get<0>(minimizers[i]);
+                if(reference_genom_minimizers.count(currentMinimizer) == 0) 
+                    reference_genom_minimizers.insert(std::pair<unsigned int,unsigned int>(currentMinimizer, 1));
+                else 
+                    reference_genom_minimizers[currentMinimizer]++;
+            }
+        }
+
+        unsigned int reference_genom_singletons = 0;
+        std::multimap<unsigned int, unsigned int> reference_genom_multimap;
+        for(std::map<unsigned int, unsigned int>::iterator itr = reference_genom_minimizers.begin(); itr != reference_genom_minimizers.end(); itr++) {
+            if(itr->second == 1) reference_genom_singletons++;
+            reference_genom_multimap.insert(std::pair<unsigned int, unsigned int>(itr->second, itr->first));
+        }
+        
+        unsigned int reference_fth_minimizer_index = reference_genom_multimap.size() - 1 - frequency * reference_genom_multimap.size();
+        std::cerr << "Total number of distinct minimizers in reference genom: " << reference_genom_minimizers.size() << "." << std::endl;
+        std::cerr << "The fraction of singletone minimizers in reference genom:  " << ((double) reference_genom_singletons) / reference_genom_minimizers.size()
+                    << "." << std::endl;
+        std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
+                    << " frequent minimizers are not taken in account: " << reference_fth_minimizer_index << std::endl;
+        
+        std::map<unsigned int, unsigned int> fragments_minimizers;
+        for (unsigned int i = 0; i < fragments.size(); i++) {
+            std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers = brown::Minimize(
+                                                                    fragments[i]->sequenceSequence.c_str(), 
+                                                                    fragments[i]->sequenceSequence.length()+1 , 
+                                                                    kmer_length, window_length);
+            for(unsigned int i = 0 ;i < minimizers.size(); i++) {
+                unsigned int currentMinimizer = std::get<0>(minimizers[i]);
+                if(fragments_minimizers.count(currentMinimizer) == 0) 
+                    fragments_minimizers.insert(std::pair<unsigned int,unsigned int>(currentMinimizer, 1));
+                else 
+                    fragments_minimizers[currentMinimizer]++;
+            }
+        }
+
+        unsigned int fragments_singletons = 0;
+        std::multimap<unsigned int, unsigned int> fragments_multimap;
+        for(std::map<unsigned int, unsigned int>::iterator itr = fragments_minimizers.begin(); itr != fragments_minimizers.end(); itr++) {
+            if(itr->second == 1) fragments_singletons++;
+            fragments_multimap.insert(std::pair<unsigned int, unsigned int>(itr->second, itr->first));
+        }
+        
+        unsigned int fragments_fth_minimizer_index = fragments_multimap.size() - 1 - frequency * fragments_multimap.size();
+        std::cerr << "Total number of distinct minimizers in reference genom: " << fragments_minimizers.size() << "." << std::endl;
+        std::cerr << "The fraction of singletone minimizers in reference genom:  " << ((double) fragments_singletons) / fragments_minimizers.size()
+                    << "." << std::endl;
+        std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
+                    << " frequent minimizers are not taken in account: " << fragments_fth_minimizer_index << std::endl;
         
         
     }

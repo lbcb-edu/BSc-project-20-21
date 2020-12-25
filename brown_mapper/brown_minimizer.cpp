@@ -3,133 +3,160 @@
 #include <string.h>
 #include <tuple>
 
+unsigned int getKmerValue(char* kmer, bool origin) {
+    std::string numbers = "";
+    int i = 0;
+    while(kmer[i] != '\0') {
+        switch(kmer[i]) {
+            case 'A':
+                origin == true ? numbers += '1' : numbers += '4';
+                break;
+            case 'C':
+                origin == true ? numbers += '2' : numbers += '3';
+                break;
+            case 'G':
+                origin == true ? numbers += '3' : numbers += '2';
+                break;
+            case 'U':
+                origin == true ? numbers += '4' : numbers += '1';
+                break;
+            case 'T':
+                origin == true ? numbers += '4' : numbers += '1';
+                break;
+            default:
+                std::cerr << "Wrong base in sequence! "<< std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+        i++;
+    }
+    return std::stoi(numbers);
+}
+
 namespace brown {
 
-        int getKmerValue(char* kmer, bool origin) {
-            std::string numbers = "";
-            int i = 0;
-            while(kmer[i] != '\0') {
-                switch(kmer[i]) {
-                    case 'C':
-                        origin == true ? numbers += '1' : numbers += '4';
-                        break;
-                    case 'A':
-                        origin == true ? numbers += '2' : numbers += '3';
-                        break;
-                    case 'U':
-                        origin == true ? numbers += '3' : numbers += '2';
-                        break;
-                    case 'T':
-                        origin == true ? numbers += '3' : numbers += '2';
-                        break;
-                    case 'G':
-                        origin == true ? numbers += '4' : numbers += '1';
-                        break;
-                    default:
-                        std::cerr << "Wrong base in sequence! "<< std::endl;
-                        std::exit(EXIT_FAILURE);
-                }
-                i++;
+    std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
+        const char* sequence, unsigned int sequence_len,
+        unsigned int kmer_len,
+        unsigned int window_len) {  
+                    
+        std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers;
+        unsigned int fraction_length;
+        bool origin;
+
+        char* kmer = (char*) malloc(kmer_len);
+        unsigned int kmer_noreverse_value, kmer_reverse_value, kmer_value;
+
+        //stavljanje pocetnih minimizera
+        for (unsigned int i = 0; i < window_len - 1; i++) {
+            strncpy(kmer, sequence + i, kmer_len);
+            kmer_noreverse_value = getKmerValue(kmer, true);
+            kmer_reverse_value = getKmerValue(kmer, false);
+        
+            if (kmer_noreverse_value < kmer_reverse_value) {
+                kmer_value = kmer_noreverse_value;
+                origin = true;
+            } else {
+                kmer_value = kmer_reverse_value;
+                origin = false;
             }
-            return std::stoi(numbers);
+            
+            if (i == 0 || kmer_value <= std::get<0>(minimizers.back())) 
+                minimizers.push_back(std::make_tuple(kmer_value, i ,origin));
+        
         }
 
-        std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
-                const char* sequence, unsigned int sequence_len,
-                unsigned int kmer_len,
-                unsigned int window_len) {  //pokusat nac ljepsi nacin za izvodenje
-                    
-                    std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers;
-                    int fraction_length;
-                    char *fraction;
-                    int minimizerValue, minimizerPosition;
-                    bool origin;
-
-                    //minimizeri s pocetka
-                    for (int i = 1; i < window_len; i++) {
-                        fraction_length = i + kmer_len - 1;
-                        fraction = (char*) malloc(fraction_length + 1);
-                        strncpy(fraction, sequence, fraction_length);
-                        fraction[fraction_length] = '\0';
-
-                        for (int j = 0; j + kmer_len <= fraction_length; j++) {
-                            char *kmer = (char*) malloc(kmer_len + 1);
-                            strncpy(kmer, fraction + j, kmer_len);
-                            kmer[kmer_len] = '\0';
-                            int kmerValueNoReverse = getKmerValue(kmer, true);
-                            int kmerValueReverse = getKmerValue(kmer, false);
-                            int kmerValue = kmerValueReverse < kmerValueNoReverse ? kmerValueReverse : kmerValueNoReverse;
-                            if (j == 0 || kmerValue < minimizerValue) {
-                                minimizerValue = kmerValue;
-                                minimizerPosition = j;
-                                origin = kmerValueReverse < kmerValueNoReverse ? false : true;
-                            }
-                            free(kmer);
-                        }
-                        if (std::get<1>(minimizers[minimizers.size() - 1]) != minimizerPosition) {
-                            std::tuple<unsigned int, unsigned int, bool> tuple = std::make_tuple(minimizerValue, minimizerPosition, origin); 
-                            minimizers.push_back(tuple);
-                        }
-                        free(fraction);
-                    }
-
-                    fraction_length = window_len + kmer_len - 1;
-                    for (int i = 0; i < sequence_len - fraction_length; i++) {
-                        fraction = (char*) malloc(fraction_length + 1);
-                        strncpy(fraction, sequence + i, fraction_length);
-                        fraction[fraction_length] = '\0';
-                       
-                        
-                        for (int j = 0; j + kmer_len < fraction_length; j++) {
-                            char *kmer = (char*) malloc(kmer_len + 1);
-                            strncpy(kmer, fraction + j, kmer_len);
-                            kmer[kmer_len] = '\0';
-                            int kmerValueNoReverse = getKmerValue(kmer, true);
-                            int kmerValueReverse = getKmerValue(kmer, false);
-                            int kmerValue = kmerValueReverse < kmerValueNoReverse ? kmerValueReverse : kmerValueNoReverse;
-                            if (j == 0 || kmerValue < minimizerValue) {
-                                minimizerValue = kmerValue;
-                                minimizerPosition = i + j;
-                                origin = kmerValueReverse < kmerValueNoReverse ? false : true;
-                            }
-                            free(kmer);
-                        }
-                       
-
-                        std::tuple<unsigned int, unsigned int, bool> tuple(minimizerValue, minimizerPosition, origin); 
-                        minimizers.push_back(tuple);
-                        free(fraction);
-                    }
-
-                    //minimizeri s kraja
-                    for (int i = window_len - 1; i > 0; i--) {
-                        fraction_length = i + kmer_len - 1;
-                        fraction = (char*) malloc(fraction_length + 1);
-                        strncpy(fraction, sequence + sequence_len - 1 - fraction_length, fraction_length);
-                        fraction[fraction_length] = '\0';
-                        
-                        for (int j = 0; j + kmer_len <= fraction_length; j++) {
-                            char *kmer = (char*) malloc(kmer_len + 1);
-                            strncpy(kmer, fraction + j, kmer_len);
-                            kmer[kmer_len] = '\0';
-                            int kmerValueNoReverse = getKmerValue(kmer, true);
-                            int kmerValueReverse = getKmerValue(kmer, false);
-                            int kmerValue = kmerValueReverse < kmerValueNoReverse ? kmerValueReverse : kmerValueNoReverse;
-                            if (j == 0 || kmerValue < minimizerValue) {
-                                minimizerValue = kmerValue;
-                                minimizerPosition = sequence_len - 1 - fraction_length + j;
-                                origin = kmerValueReverse < kmerValueNoReverse ? false : true;
-                            }
-                            free(kmer);
-                        }
-
-                        std::tuple<unsigned int, unsigned int, bool> tuple(minimizerValue, minimizerPosition, origin); 
-                        minimizers.push_back(tuple);
-                        free(fraction);
-                    }
-
-                    return minimizers;
-
+        //stavljanje unutarnjih minimizera
+        fraction_length = window_len + kmer_len - 1;
+        for (unsigned int i = 0; i <= sequence_len - fraction_length; i++) {
+            if (std::get<1>(minimizers.back()) >= i) {
+                strncpy(kmer, sequence + i + fraction_length - kmer_len, kmer_len);
+                kmer_noreverse_value = getKmerValue(kmer, true);
+                kmer_reverse_value = getKmerValue(kmer, false);
+                
+                if (kmer_noreverse_value < kmer_reverse_value) {
+                    kmer_value = kmer_noreverse_value;
+                    origin = true;
+                } else {
+                    kmer_value = kmer_reverse_value;
+                    origin = false;
                 }
-    
+                
+                if (kmer_value <= std::get<0>(minimizers.back())) 
+                    minimizers.push_back(std::make_tuple(kmer_value, i + fraction_length - kmer_len, origin));
+            
+            } else {
+                unsigned int minimizer_value, minimizer_position;
+                bool minimizer_origin;
+                
+                for (unsigned int j = 0; j <= fraction_length -  kmer_len; j++) {                    
+                    strncpy(kmer, sequence + i + j, kmer_len);
+                    kmer_noreverse_value = getKmerValue(kmer, true);
+                    kmer_reverse_value = getKmerValue(kmer, false);
+                    
+                    if (kmer_noreverse_value < kmer_reverse_value) {
+                        kmer_value = kmer_noreverse_value;
+                        origin = true;
+                    } else {
+                        kmer_value = kmer_reverse_value;
+                        origin = false;
+                    }
+                    
+                    if (j == 0 || kmer_value < minimizer_value) {
+                        minimizer_value = kmer_value;
+                        minimizer_position = j;
+                        minimizer_origin = origin;
+                    }
+                }
+                minimizers.push_back(std::make_tuple(minimizer_value, minimizer_position, minimizer_origin));
+            
+            }
+        }
+
+        //stavljanje krajnih minimizera
+        for (unsigned int i = sequence_len - window_len - kmer_len + 2; i <= sequence_len - kmer_len; i++) {
+            if (std::get<1>(minimizers.back()) < i) {
+                unsigned int minimizer_value, minimizer_position;
+                bool minimizer_origin;
+                
+                for (unsigned int j = i; j <= sequence_len - kmer_len; j++) {                    
+                    strncpy(kmer, sequence + j, kmer_len);
+                    kmer_noreverse_value = getKmerValue(kmer, true);
+                    kmer_reverse_value = getKmerValue(kmer, false);
+                    
+                    if (kmer_noreverse_value < kmer_reverse_value) {
+                        kmer_value = kmer_noreverse_value;
+                        origin = true;
+                    } else {
+                        kmer_value = kmer_reverse_value;
+                        origin = false;
+                    }
+
+                    if (j == i || kmer_value < minimizer_value) {
+                        minimizer_value = kmer_value;
+                        minimizer_position = j;
+                        minimizer_origin = origin;
+                    }
+                }
+
+                minimizers.push_back(std::make_tuple(minimizer_value, minimizer_position, minimizer_origin));
+            }
+            
+        }
+
+        free(kmer);
+
+        return minimizers;
+    }
 }
+
+
+
+
+        
+
+
+
+
+
+                    
+
