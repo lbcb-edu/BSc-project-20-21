@@ -2,16 +2,30 @@
 #include <string>
 #include <getopt.h>
 #include <vector>
+#include <unordered_map>
 #include <time.h>
+#include <cmath>
 
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
 #include "blonde_alignment.h"
 #include "blonde_minimizers.h"
 
-#define VERSION "v0.1.2"
+#define VERSION "v0.1.3"
 
 namespace blonde {
+
+constexpr int LENGTH_LIMIT = 5000;
+
+static int help_flag = 0;         /* Flag set by �--help�.    */
+static int version_flag = 0;      /* Flag set by �--version�. */
+static int algorithm = 0;         /* Flag set by �-a�. */
+static int match_cost = 1;        /* Flag set by �-m�. */
+static int mismatch_cost = -1;    /* Flag set by �-n�. */
+static int gap_cost = -1;         /* Flag set by �-g�. */
+static double frequency = 0.001;  /* Flag set by �-f�. */
+static int kmer_len = 15;         /* Flag set by �-k�. */
+static int window_len = 5;        /* Flag set by �-w�. */
 
 class Sequence {
 public:
@@ -72,14 +86,33 @@ void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments,
     std::cerr << "Maximal length: " << lengths.front() << '\n';
 }
 
-constexpr int LENGTH_LIMIT = 5000;
+void printMinimizerInfo(const std::vector<std::unique_ptr<Sequence>>& sequences) {
+    std::unordered_map<unsigned int, unsigned int> minimizers_map;
+    int num_of_singletons = 0;
+    for (int i = 0; i < int(sequences.size()); i++) {
+        std::vector<minimizers::Kmer> minimizers = minimizers::Minimize(sequences[i]->data_.c_str(), 
+                                                                        sequences[i]->data_.size(), 
+                                                                        kmer_len, window_len);
+        for (int j = 0; j < int(minimizers.size()); j++) {
+            minimizers_map[std::get<0>(minimizers[j])]++;
+        }
+    }
+    
+    std::vector<unsigned int> minimizers_vec;
+    minimizers_vec.reserve(minimizers_map.size());
+    for(auto& entry : minimizers_map) {
+        if (entry.second == 1) num_of_singletons++;
+        minimizers_vec.push_back(entry.second);
+    }
+    sort(minimizers_vec.begin(), minimizers_vec.end(), std::greater<>());
+    size_t minimizers_to_skip = std::ceil(minimizers_map.size() * frequency);
+    if (minimizers_to_skip >= minimizers_map.size()) minimizers_to_skip = minimizers_map.size() - 1;
 
-static int help_flag = 0;     /* Flag set by �--help�.    */
-static int version_flag = 0;  /* Flag set by �--version�. */
-static int algorithm = 0;
-static int match_cost = 1;
-static int mismatch_cost = -1;
-static int gap_cost = -1;
+    std::cout << "Number of distinct minimizers: " << minimizers_map.size() << std::endl;
+    std::cout << "Fraction of singletons: " << ((double) num_of_singletons / minimizers_map.size()) << std::endl;
+    std::cout << "Number of occurrences of the most frequent minimizer with top " << frequency * 100
+              << "% most frequent ignored: " << minimizers_vec[minimizers_to_skip] << std::endl;
+}
 
 void processGenomes(
     const std::vector<std::unique_ptr<Sequence>>& genomes,
@@ -124,6 +157,13 @@ void processGenomes(
     std::cout << "Align result: " << align_score << std::endl;
     std::cout << "Cigar str: " << cigar << std::endl;
     std::cout << "Target begin: " << target_begin << std::endl;
+
+    //Minimizers from reference genome and fragments
+    std::cout << "\nMINIMIZER INFO:\n";
+    std::cout << "Reference genome:\n";
+    printMinimizerInfo(genomes);
+    std::cout << "\nFragments:\n";
+    printMinimizerInfo(fragments);
 }
 
 /* Modificiran primjer https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html */
@@ -137,6 +177,9 @@ const std::string HELP_MESSAGE = "blonde_mapper usage: \n\n"
                                  "-m <X>           sets the match cost to X. default is 1 \n"
                                  "-n <X>           sets the mismatch cost to X. default is 1 \n"
                                  "-g <X>           sets the gap cost to X. default is 1 \n"
+                                 "-k <X>           sets the kmer length to to X. default is 15 \n"
+                                 "-w <X>           sets the minimizer window length to X. default is 5 \n"
+                                 "-f <X>           sets the fraction of top minimizers to ignore to X. default is 0.001 \n"
                                  "\nblonde_mapper takes two filenames as command line arguments: \n"
                                  "The first file will contain a reference genome in FASTA format,\n"
                                  "while the second file will contain a set of fragments in either\n"
@@ -158,12 +201,14 @@ int main (int argc, char **argv) {
                 {"match", required_argument, &match_cost, 1},
                 {"mismatch", required_argument, &mismatch_cost, 1},
                 {"gap", required_argument, &gap_cost, 1},
+                {"kmerlen", required_argument, &kmer_len, 1},
+                {"windowlen", required_argument, &window_len, 1},
                 {0, 0, 0, 0}
             };
         /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "hva:m:n:g:",
+        c = getopt_long(argc, argv, "hva:m:n:g:k:w:f:",
                         long_options, &option_index);
 
         /* Detect the end of the options. */
@@ -196,6 +241,18 @@ int main (int argc, char **argv) {
 
         case 'g':
             gap_cost = -std::stoi(optarg);
+            break;
+
+        case 'k':
+            kmer_len = std::stoi(optarg);
+            break;
+
+        case 'w':
+            window_len = std::stoi(optarg);
+            break;
+
+        case 'f':
+            frequency = std::stod(optarg);
             break;
 
         case '?':
@@ -232,24 +289,6 @@ int main (int argc, char **argv) {
             }
             processGenomes(genomes, fragments, true);
         }
-    }
-    
-    //Primjer minimizera
-    std::string test = "ACCTGACT";
-    unsigned int len = 8;
-    unsigned int kmer_len = 2;
-    unsigned int window_len = 6; 
-    auto result = minimizers::Minimize(test.c_str(), len, kmer_len, window_len);
-
-    std::cout << "Minimizers:\n";
-    for(minimizers::Kmer mer : result) {
-        std::cout << std::hex << std::get<0>(mer);
-        std::cout << " ";
-        std::cout << std::hex << std::get<1>(mer);
-        std::cout << " ";
-        std::cout << std::hex << std::get<2>(mer);
-        std::cout << " ";
-        std::cout << std::endl;
     }
 
     return 0;
