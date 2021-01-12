@@ -1,9 +1,11 @@
 #include <iostream>
 #include <getopt.h>
+#include <unordered_map>
 #include "projectControl.h"
 #include "../bioparser/include/bioparser/fasta_parser.hpp"
 #include "../bioparser/include/bioparser/fastq_parser.hpp"
 #include "white_alignment.h"
+#include "white_minimizers.hpp"
 
 static int version_req;
 static int help_req;
@@ -11,70 +13,88 @@ static int align_algorithm = 0;
 static int match_cost = 1;
 static int mismatch_cost = -1;
 static int gap_cost = -1;
+static double frequency = 0.001;
+static int kmer_len = 15;
+static int window_len = 5;
 
 //gets the project version from projectControl.h
-void version_print(){
-    std::cout << PROJECT_VER << std::endl;
+void version_print()
+{
+	std::cout << PROJECT_VER << std::endl;
 }
 
 //basic definition of a Sequence structure
-struct Sequence { 
-	public:
-		Sequence(
-			const char* name, std::uint32_t nameLength,
-			const char* data, std::uint32_t dataLength) {
-			this->name = name;
-			this->data = data;
-			this->dataLength = dataLength;
-			this->nameLength = nameLength;
-		}
+struct Sequence
+{
+public:
+	Sequence(
+		const char *name, std::uint32_t nameLength,
+		const char *data, std::uint32_t dataLength)
+	{
+		this->name = name;
+		this->data = data;
+		this->dataLength = dataLength;
+		this->nameLength = nameLength;
+	}
 
-		std::string getName() {
-			return this->name;
-		}
+	std::string getName()
+	{
+		return this->name;
+	}
 
-		std::string getData() {
-			return this->data;
-		}
+	std::string getData()
+	{
+		return this->data;
+	}
 
-		std::uint32_t getNameLength() {
-			return this->nameLength;
-		}
+	std::uint32_t getNameLength()
+	{
+		return this->nameLength;
+	}
 
-		std::uint32_t getDataLength() {
-			return this->dataLength;
-		}
+	std::uint32_t getDataLength()
+	{
+		return this->dataLength;
+	}
 
-	private:
-		const char* name;
-		const char* data;
-		std::uint32_t nameLength;
-		std::uint32_t dataLength;
-	};
+private:
+	const char *name;
+	const char *data;
+	std::uint32_t nameLength;
+	std::uint32_t dataLength;
+};
 
 //Checks if passed arguments are in fasta and fastq formats
-bool checkArgs(char *argv[]) {
-	const char* extension_fasta[5] = { ".fasta", ".fna", ".ffn", ".faa", ".frn" };
-	char* p = strrchr(argv[1], '.');
+bool checkArgs(char *argv[])
+{
+	const char *extension_fasta[5] = {".fasta", ".fna", ".ffn", ".faa", ".frn"};
+	char *p = strrchr(argv[1], '.');
 	int found = 0;
-	if (p) {
-		for (int i = 0; i < 5; i++) {
-			if (strcmp(p, extension_fasta[i])) {
+	if (p)
+	{
+		for (int i = 0; i < 5; i++)
+		{
+			if (strcmp(p, extension_fasta[i]))
+			{
 				found++; //if the first file checks out
-				break; //break this loop and check the second file
+				break;	 //break this loop and check the second file
 			}
 		}
 	}
 
-	if (found != 1) { //in case the for loop has come to an end and the file doesn't pass the check
+	if (found != 1)
+	{ //in case the for loop has come to an end and the file doesn't pass the check
 		return false;
 	}
 
-	const char* extension_fastq[7] = {".fasta", ".fna", ".ffn", ".faa", ".frn", ".fastq", ".fq"};
+	const char *extension_fastq[7] = {".fasta", ".fna", ".ffn", ".faa", ".frn", ".fastq", ".fq"};
 	p = strrchr(argv[2], '.');
-	if (p) {
-		for (int i = 0; i < 7; i++) {
-			if (strcmp(p, extension_fastq[i])) {
+	if (p)
+	{
+		for (int i = 0; i < 7; i++)
+		{
+			if (strcmp(p, extension_fastq[i]))
+			{
 				return true; //if the second file checks out, then both files are good and the function returns true
 			}
 		}
@@ -83,48 +103,55 @@ bool checkArgs(char *argv[]) {
 }
 
 //calculates the index of N50-th member
-int calculateN50(std::vector<size_t> fragmentVector, int sum) {
+int calculateN50(std::vector<size_t> fragmentVector, int sum)
+{
 	int temp_sum = 0;
-	for (int i = fragmentVector.size(); i > 0; i--) {
+	for (int i = fragmentVector.size(); i > 0; i--)
+	{
 		temp_sum += fragmentVector[i];
-		if (temp_sum > sum/2) {
+		if (temp_sum > sum / 2)
+		{
 			return i;
 		}
 	}
 	return -1; //the program should never get to this, but it was necessary to implement because of compilation issues
 }
-	
+
 //prints the standard help message
-void help_print(){
-    std::cout << "\n" PROJECT_NAME " usage:\n"
-    "Two options :\n"
-    "-h or --help\t Prints help message\n"
-    "-v or --version\t Prints version\n\n"
-    "Mapper accepts two files arguments.\n"
-    "The first file  FASTA format.\n"
-    "The second file  FASTA or FASTQ format.\n\n"
-    "Mapper shows these statistics :\n"
-    "names of sequences in the reference file and their lengths,\n"
-    "number of sequences in the fragments file,\n"
-    "their average length,\n"
-    "N50 length,\n"
-    "minimal and maximal length.\n\n";
+void help_print()
+{
+	std::cout << "\n" PROJECT_NAME " usage:\n"
+				 "Two options :\n"
+				 "-h or --help\t Prints help message\n"
+				 "-v or --version\t Prints version\n\n"
+				 "Mapper accepts two files arguments.\n"
+				 "The first file  FASTA format.\n"
+				 "The second file  FASTA or FASTQ format.\n\n"
+				 "Mapper shows these statistics :\n"
+				 "names of sequences in the reference file and their lengths,\n"
+				 "number of sequences in the fragments file,\n"
+				 "their average length,\n"
+				 "N50 length,\n"
+				 "minimal and maximal length.\n\n";
 }
 
-int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragment_list, std::string* cigar, unsigned int* target_begin) {
+int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragment_list, std::string *cigar, unsigned int *target_begin)
+{
 	//std::cout << "check0\n";
-	srand (time(NULL));
+	srand(time(NULL));
 	int query_index;
 	int target_index;
 	white::AlignmentType align_type;
 	//std::cout << "check0.25\n";
-	do {
+	do
+	{
 		query_index = rand() % (size);
 		target_index = rand() % (size);
-	} while (fragment_list[query_index] -> getDataLength() > 5000 &&
-		fragment_list[target_index] -> getDataLength() > 5000);
+	} while (fragment_list[query_index]->getDataLength() > 5000 &&
+			 fragment_list[target_index]->getDataLength() > 5000);
 	//std::cout << "check0.5\n";
-	switch (align_algorithm) {
+	switch (align_algorithm)
+	{
 	case 0:
 		align_type = white::AlignmentType::GLOBAL;
 		break;
@@ -138,48 +165,51 @@ int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragme
 		break;
 	}
 	//std::cout << "check1\n";
-	white::Aligner *aligner = new white::Aligner(fragment_list[query_index] -> getData().c_str(),
-		fragment_list[query_index] -> getDataLength(),
-		fragment_list[target_index] -> getData().c_str(),
-		fragment_list[target_index] -> getDataLength(),
-		match_cost, mismatch_cost, gap_cost, cigar, target_begin);
-	
-		int align_score = aligner -> Align (align_type);
+	white::Aligner *aligner = new white::Aligner(fragment_list[query_index]->getData().c_str(),
+												 fragment_list[query_index]->getDataLength(),
+												 fragment_list[target_index]->getData().c_str(),
+												 fragment_list[target_index]->getDataLength(),
+												 match_cost, mismatch_cost, gap_cost, cigar, target_begin);
+
+	int align_score = aligner->Align(align_type);
 	return align_score;
 };
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[])
+{
 
-    int opt;
-    
-    static struct option long_options[] = {
-            {"help", no_argument, &help_req, 1},
-            {"version", no_argument, &version_req, 1},
-			{"algorithm", required_argument, nullptr, 'a'},
-			{"match_cost", required_argument, nullptr, 'm'},
-			{"mismatch_cost", required_argument, nullptr, 'n'},
-			{"gap_cost", required_argument, nullptr, 'g'},
-            {0, 0, 0, 0}    
-    };
+	int opt;
 
-	
-    while ((opt = getopt_long(argc, argv, "a:m:n:g:hv", long_options, nullptr)) != -1){
-        
-        switch (opt)
-        {
-        case 0:
-            break;
+	static struct option long_options[] = {
+		{"help", no_argument, &help_req, 1},
+		{"version", no_argument, &version_req, 1},
+		{"algorithm", required_argument, nullptr, 'a'},
+		{"match_cost", required_argument, nullptr, 'm'},
+		{"mismatch_cost", required_argument, nullptr, 'n'},
+		{"gap_cost", required_argument, nullptr, 'g'},
+		{"frequency", required_argument, nullptr, 'f'},
+		{"kmer_len", required_argument, nullptr, 'k'},
+		{"window_len", required_argument, nullptr, 'w'},
+		{0, 0, 0, 0}};
 
-        case 'h':
-            help_req = true;
-            break;
+	while ((opt = getopt_long(argc, argv, "a:m:n:g:k:f:w:hv:", long_options, nullptr)) != -1)
+	{
 
-        case 'v':
-            version_req = true;
-            break;
+		switch (opt)
+		{
+		case 0:
+			break;
 
-        case '?':
-            break; 
+		case 'h':
+			help_req = true;
+			break;
+
+		case 'v':
+			version_req = true;
+			break;
+
+		case '?':
+			break;
 
 		case 'a':
 			align_algorithm = atoi(optarg);
@@ -193,22 +223,36 @@ int main(int argc, char *argv[]){
 			mismatch_cost = atoi(optarg);
 			break;
 
-		case 'g':   
+		case 'g':
 			gap_cost = atoi(optarg);
 			break;
 
-        default:
-            abort();
-        }
-    }
+		case 'f':
+			frequency = atof(optarg);
+			break;
 
+		case 'k':
+			kmer_len = atoi(optarg);
+			break;
+
+		case 'w':
+			window_len = atoi(optarg);
+			break;
+
+		default:
+			abort();
+		}
+	}
 
 	//prints help or version and ends the program, depending on which option flag was input as an argument
-    if (version_req){
-        version_print();
+	if (version_req)
+	{
+		version_print();
 		return 0;
-    } else if(help_req){
-        help_print();
+	}
+	else if (help_req)
+	{
+		help_print();
 		return 0;
 	}
 
@@ -225,20 +269,21 @@ int main(int argc, char *argv[]){
 	// }
 
 	std::cout << argc << "\n";
-	for (int i = 0; i < argc; i++) {
+	for (int i = 0; i < argc; i++)
+	{
 		std::cout << argv[i] << "\n";
 	}
 
 	//parsing the first file
-	auto genome = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[argc-2]);
+	auto genome = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[argc - 2]);
 	auto g = genome->Parse(-1);
 	int g_size = (int)g.size();
 
 	//parsing the second file
-	auto fragments = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[argc-1]);
+	auto fragments = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[argc - 1]);
 	auto f = fragments->Parse(-1);
 	int f_size = (int)f.size();
-	
+
 	int sum = 0;
 
 	//names of sequences in the reference file and their lengths
@@ -247,7 +292,8 @@ int main(int argc, char *argv[]){
 	} */
 
 	//number of sequences in the fragments file
-	for (int i = 0; i < f_size; i++) {
+	for (int i = 0; i < f_size; i++)
+	{
 		sum += f[i]->getDataLength();
 	}
 	std::cerr << "Number of sequences: " << sum << "\n\n";
@@ -255,10 +301,10 @@ int main(int argc, char *argv[]){
 	float avg_size = sum / f_size;
 	std::cerr << "Average length of fragments: " << avg_size << "\n\n";
 
-
 	//filling a vector with necessary data
 	std::vector<size_t> fragmentVector;
-	for (int i = 0; i < f_size; i++) {
+	for (int i = 0; i < f_size; i++)
+	{
 		fragmentVector.push_back(f[i]->getDataLength());
 	}
 
@@ -278,9 +324,36 @@ int main(int argc, char *argv[]){
 	unsigned int *target_begin = &target_beginNotPointer;
 	int alignment_score = calcAlignment(f_size, f, cigar, target_begin);
 
-	 std::cout << "Alignment score: " << alignment_score << '\n'
-            << "Target begin index: " << target_beginNotPointer << "\n"
-            << "CIGAR: " << cigarNotPointer << std::endl;
+	std::cout << "Alignment score: " << alignment_score << '\n'
+			  << "Target begin index: " << target_beginNotPointer << "\n"
+			  << "CIGAR: " << cigarNotPointer << std::endl;
+
+	std::unordered_map<unsigned int, unsigned int> map;
+	int singletons_count = 0;
+
+	for (int i = 0; i < g.size(); i++) {
+		std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizer_vector = 
+			white::Minimize(g[i]->getData().c_str(), g[i]->getDataLength(), kmer_len, window_len);
+		
+		for (auto& minimizer : minimizer_vector) {
+			map[std::get<0>(minimizer)]++;
+		}
+	}
+
+	std::vector<unsigned int> minimizer_sorted(map.size());
+	for (auto& minimizer : map) {
+		if (minimizer.second == 1) {
+			singletons_count++;
+		}
+		minimizer_sorted.push_back(minimizer.second);
+	}
+
+	std::sort(minimizer_sorted.begin(), minimizer_sorted.end(), std::greater<>());
+	
+	std::cout << "Number of distinct minimizers: " << map.size() << std::endl;
+	std::cout << "Fraction of singletons: " << (double) singletons_count / map.size() << std::endl;
+	std::cout << "Number of occurrences of the most frequent minimizer with top " <<
+		frequency * 100	<< "% most frequent ignored: " << minimizer_sorted[std::ceil(map.size() * frequency)] << std::endl;
 
 	return 0;
 }
