@@ -1,0 +1,1 @@
+add_library(orange_minimizer orange_minimizer.cpp orange_minimizer.h)

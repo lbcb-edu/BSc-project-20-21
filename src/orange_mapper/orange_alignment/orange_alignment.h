@@ -26,7 +26,7 @@ namespace orange
         int gap;
         std::string* cigar = nullptr;
         unsigned int* target_begin = nullptr;
-	vector<vector<Cell>> mainMatrix;
+	    vector<vector<Cell>> mainMatrix;
         Alignment(const char* query, unsigned int query_len,
             char* target, unsigned int target_len,
             orange::AlignmentType type,
@@ -45,7 +45,7 @@ namespace orange
             int match,
             int mismatch,
             int gap, vector<vector<Cell>> mainMatrix);
-        int Align(const char* query, unsigned int query_len,
+    int Align(const char* query, unsigned int query_len,
             const char* target, unsigned int target_len,
             AlignmentType type,
             int match,
