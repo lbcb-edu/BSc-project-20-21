@@ -27,10 +27,11 @@ namespace orange {
         return false;
     }
     //returns current kmer value
+    // if bool is true -> complement
     unsigned long int kmerMask(const char* sequence, bool isCompl, unsigned int k, int position) {
         unsigned long int kmer = 0;
 
-        for (int i = 0; i < k; i++) {
+        for (unsigned int i = 0; i < k; i++) {
             if (!isCompl) {
                 kmer = kmer << 2 | assignValue(sequence[i + position]);
             }
@@ -49,9 +50,9 @@ namespace orange {
         vector<Kmer> results;
         Kmer kmer;
         Kmer kmerCompl;
-        int i = position;
-        //while(i < s)?
-        for (; i < w ; i++) {
+        unsigned int i = position;
+        //while(i < s)???
+        for (; i < w; i++) {
             std::get<0>(kmer) = kmerMask(sequence, false, k, i);
             std::get<1>(kmer) = i;
             std::get<2>(kmer) = true;
@@ -59,27 +60,53 @@ namespace orange {
             std::get<1>(kmerCompl) = i;
             std::get<2>(kmerCompl) = false;
             result = compare(kmer, kmerCompl) ? kmer : kmerCompl;
-            while (result < results.end && !results.empty) {
-                results.pop_back;
+            while (!results.empty() && compare(result, results.back())) {
+                results.pop_back();
             }
             results.push_back(result);
 
         }
         return results;
     }
-
-    //function that finds minimizers in the begining
+    //function that finds end minimizers
     vector<Kmer> beginingMinimizers(const char* sequence, unsigned int s, unsigned int k, unsigned int w) {
-        vector<Kmer> result;
+        vector<Kmer> results;
 
-        return result;
+        return results;
     }
 
     //function that finds end minimizers
     vector<Kmer> endMinimizers(const char* sequence, unsigned int s, unsigned int k, unsigned int w) {
-        vector<Kmer> result;
-
-        return result;
+        vector<Kmer> results;
+        Kmer minKmer;
+        Kmer kmer;
+        unsigned int value;
+        Kmer kmerCompl;
+        for (unsigned int i = k; i < s; i++) {
+            //first pass
+            if (i == k) {
+                value = kmerMask(sequence, false, k, i - k);
+                kmer = make_tuple(value, i - k, false);
+                value = kmerMask(sequence, true, k, i - k);
+                kmerCompl = make_tuple(value, i - k, true);
+                minKmer = compare(kmer, kmerCompl) ? kmer : kmerCompl;
+                results.push_back(minKmer);
+            }
+            else {
+                for (int j = i - k + 1; j > 0; j--) {
+                    value = kmerMask(sequence, false, k, j);
+                    kmer = make_tuple(value, j, false);
+                    value = kmerMask(sequence, true, k, j);
+                    kmerCompl = make_tuple(value, j, true);
+                    kmer = compare(kmer, kmerCompl) ? kmer : kmerCompl;
+                    if (compare(kmer, minKmer)) {
+                        minKmer = kmer;
+                        results.push_back(minKmer);
+                    }
+                }
+            }
+        }
+        return results;
     }
 
     //function that finds interior minimizers
@@ -88,7 +115,7 @@ namespace orange {
         vector<Kmer> temp;
         Kmer kmer;
         Kmer kmerCompl;
-        for (int i = 0; i <= s - (w + k - 1); i++) {
+        for (unsigned int i = 0; i <= s - (w + k - 1); i++) {
             //adding minimizers from the window to result
             temp = checkWindow(sequence, s, k, w, i);
             results.insert(end(results), begin(temp), end(temp));
@@ -104,8 +131,6 @@ namespace orange {
         const char* sequence, unsigned int sequence_len, unsigned int kmer_len, unsigned int window_len) {
         vector<Kmer> minimizers;
         vector<Kmer> temp;
-        unsigned long int orig;
-        unsigned long int revComp;
 
         //TODO : begininig minimizers
         temp = beginingMinimizers(sequence, sequence_len, kmer_len, window_len);
