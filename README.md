@@ -1,4 +1,4 @@
-https://travis-ci.com/lbcb-edu/BSc-project-20-21.svg?branch=brown
+[![Build Status](https://travis-ci.com/lbcb-edu/BSc-project-20-21.svg?branch=brown)](https://travis-ci.com/lbcb-edu/BSc-project-20-21)
 
 # BSc project (computer science - 2020/2021)
 
