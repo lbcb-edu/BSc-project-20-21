@@ -1,3 +1,5 @@
+https://travis-ci.com/lbcb-edu/BSc-project-20-21.svg?branch=brown
+
 # BSc project (computer science - 2020/2021)
 
 Software Design Project is a course held at University of Zagreb, Faculty of Electrical Engineering and Computing in the fifth semester of the undergraduate study. The main focus is to promote cooperation between students while solving specific problems. Under the supervision of professor Mile Šikić and assistant professor Krešimir Križanović, students will get familiar with C++, basics of compilation methods, version control, unit tests and continuous integration, and will be introduced to algorithms used in bioinformatics. This project will be executed in several steps, each with defined outcomes which are required for succeeding steps. Instructions and guidelines for the project will be written in this README file which will be updated through the semester.
@@ -90,6 +92,12 @@ std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
 where the return value is the list of found minimizers (first `unsigned int` of tuple), their positions in the sequence (second `unsigned int` of tuple) and their origin (whether they are located on the original strand (`true` in tuple) or the [reverse complement](https://en.wikipedia.org/wiki/Complementarity_(molecular_biology)) (`false` in tuple)), while parameters `kmer_len` and `window_len` are self explanatory (check the provided paper).
 
 Once the library is finished, it has to be used to find minimizers of all sequences in the first input file, and then in the second. The mapper has to print the number of distinct minimizers, fraction of singletons, and the number of occurrences of the most frequent minimizer when the top `f` frequent minimizers are **not** taken in account (add optional arguments for setting `k`, `w` and `f` to the mapper). Default values for `(k, w, f)` should be `(15, 5, 0.001)`.
+
+## Mapper
+
+The final step is to align each of the inputed fragments to the given reference genome, with the help of the alignment and the minimizer libraries. First, it is necessary to create a minimizer index from the reference genome, which will store all positions and origins for each distinct minimizer found in the reference (too frequent minimizers should be ignored, controlled by parameter `f`). Next, all minimizers of a fragment are to be searched against the reference index to find matches. From the list of all matches for a pair of `(fragment, reference)`, the longest linear chain should represent the best candidate for a good alignment between the pair. That region can be obtained in quasilinear time by solving the longest increasing subsequence problem on the list of minimizer matches. Afterwards, the alignment procedure can be invoked only on the found regions (`[q_begin, q_end]` and `[t_begin, t_end]`).
+
+The mapper should print the found regions in [PAF](https://github.com/lh3/miniasm/blob/master/PAF.md) format to stdout. The CIGAR strings of the alignment should be included only if argument `c` is used at runtime. They ought to be stored in the 13th collumn in format `cg:Z:<CIGAR>`. In addition, the mapper should be parallelized with optional number of threads (determined over argument `t`). Parallelization can be done via [OpenMP](https://www.openmp.org/) or [thread_pool](https://github.com/rvaser/thread_pool).
 
 ## Disclaimer
 

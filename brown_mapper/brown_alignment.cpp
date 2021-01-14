@@ -19,7 +19,10 @@ namespace brown {
             int resultColumn = 0;
             //std::cout << "ide radit align\n";
 
-            int m[query_len + 1][target_len + 1];
+            //int m[query_len + 1][target_len + 1];
+            int **m = new int*[query_len + 1];
+            for (unsigned int i = 0; i < query_len + 1; i++)
+                m[i] = new int[target_len + 1];
             
             //std::cout << "ide radit align\n";
             if(type == GLOBAL) {
@@ -33,17 +36,17 @@ namespace brown {
                 for (int i = 1; i < query_len+1; i++)
                     for (int j = 1; j < target_len+1; j++) {
                         int matchCost;
-                        if (query[i - 1] == target[j - 1]) matchCost=m[i-1][j-1] + match;
+                        if (query[i-1] == target[j-1]) matchCost=m[i-1][j-1] + match;
                         else matchCost = m[i-1][j-1] + mismatch;
                         m[i][j]=std::max(std::max(matchCost, m[i][j-1] + gap), m[i-1][j] + gap);
                         
                     }
                 resultRow = query_len;
                 resultColumn = target_len;
-                std::cout << "odradio je global align\n";
+                //std::cout << "odradio je global align\n";
             }
             else if (type == LOCAL) {
-                int maxCell = 0;
+                int maxCell = INT32_MIN;
                 m[0][0] = 0;
                 resultColumn = 0;
                 resultRow = 0;
@@ -69,7 +72,7 @@ namespace brown {
             }
             else if (type == SEMIGLOBAL){
                 m[0][0] = 0;
-                int maxCell = 0;
+                int maxCell = INT32_MIN;
                 for (int i = 1; i < query_len + 1; i++) {
                     m[i][0] = 0;
                 }
@@ -101,8 +104,8 @@ namespace brown {
             //int targetLocal;
             if (cigar != nullptr || target_begin !=nullptr) {
                 
-                    while((type==GLOBAL && (resultRow != 0 && resultColumn != 0)) || 
-                            (type==SEMIGLOBAL && (resultRow != 0 || resultColumn != 0)) ||
+                    while((type==GLOBAL && (resultRow != 0 || resultColumn != 0)) || 
+                            (type==SEMIGLOBAL && (resultRow != 0 && resultColumn != 0)) ||
                             (type==LOCAL && m[resultRow][resultColumn] != 0)) {
 
                         if(!(resultRow == 0 || resultColumn == 0)) { 
@@ -111,17 +114,20 @@ namespace brown {
                                 cigarBeta += "M";
                                 resultColumn--;
                                 resultRow--;
+                                continue;
                             }
                             else if (m[resultRow-1][resultColumn-1] + mismatch == m[resultRow][resultColumn]) {
                                 cigarBeta += "X";
                                 resultColumn--;
                                 resultRow--;
+                                continue;
                             }
                         }
 
                         if (resultRow != 0 && m[resultRow-1][resultColumn] + gap == m[resultRow][resultColumn]) {
                             cigarBeta += "D";
                             resultRow--;
+                            continue;
                         }
 
                         if (resultColumn != 0 &&  m[resultRow][resultColumn-1] + gap == m[resultRow][resultColumn]) {
@@ -151,17 +157,24 @@ namespace brown {
 
                     }
                     else {
-                        cigar->append(std::to_string(counter));
                         cigar->append(std::string (1, current));
+                        cigar->append(std::to_string(counter));
                         counter = 0;
                         current = cigarBeta.at(0);
                     }
                 }
-                cigar->append(std::to_string(counter));
                 cigar->append(std::string (1, current));
+                cigar->append(std::to_string(counter));
+                std::reverse((*cigar).begin(), (*cigar).end());
             }
-        
-            return m[returnRow][returnColumn];
+
+            int result = m[returnRow][returnColumn];
+            for (int i = query_len; i >= 0; i--)
+                delete[] m[i];
+
+            delete[] m;
+            //std::cout << "obavio je cijeli align" << std::endl;
+            return result;
     }
     
 }

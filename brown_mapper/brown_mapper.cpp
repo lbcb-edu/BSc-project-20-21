@@ -222,8 +222,8 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
 
-        std::string* cigar;
-        unsigned int* target_begin;
+        std::string* cigar = new std::string();
+        unsigned int* target_begin = new unsigned int();
         srand(time(0));
         int fragment_postion1, fragment_postion2;
         //std::cout << "ide birat fragmente\n";
@@ -243,8 +243,8 @@ int main(int argc, char* argv[]) {
                                     type, match, mismatch, gap, cigar, target_begin);        
         std::cerr << std::endl << "Alignment results for two randomly chossen genom fragments in second file: " << std::endl
                     << "    Alignment score: " << result << std::endl
-                    << "    Cigar string of alignment: " << cigar << std::endl
-                    << "    Begining of alignemnt is on position " << target_begin << " of target genom." << std::endl;
+                    << "    Cigar string of alignment: " << *cigar << std::endl
+                    << "    Begining of alignemnt is on position " << *target_begin << " of target genom." << std::endl;
        
         
         std::map<unsigned int, unsigned int> reference_genom_minimizers;
