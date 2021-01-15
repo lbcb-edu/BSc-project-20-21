@@ -11,11 +11,12 @@
 #include "blonde_alignment.h"
 #include "blonde_minimizers.h"
 
-#define VERSION "v0.1.3"
+#define VERSION "v0.1.4"
 
 namespace blonde {
 
 constexpr int LENGTH_LIMIT = 5000;
+constexpr int EPSILON_BAND = 500;
 
 static int help_flag = 0;         /* Flag set by �--help�.    */
 static int version_flag = 0;      /* Flag set by �--version�. */
@@ -49,6 +50,11 @@ public:
 public:
     std::string quality_;
 };
+
+// q_begin, q_end, t_begin, t_end
+using CandidateRegion = std::tuple<unsigned int, unsigned int, unsigned int, unsigned int, bool>;
+// relative strand 0 = same, 1 = different, i - i' / i + i', i', 
+using Match = std::tuple<bool, unsigned int, unsigned int>;
 
 void printReferenceGenomesInfo(const std::vector<std::unique_ptr<Sequence>>& genomes) {
     std::cerr << "Reference genome sequences:\n";
@@ -86,32 +92,181 @@ void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments,
     std::cerr << "Maximal length: " << lengths.front() << '\n';
 }
 
-void printMinimizerInfo(const std::vector<std::unique_ptr<Sequence>>& sequences) {
-    std::unordered_map<unsigned int, unsigned int> minimizers_map;
+void makeIndex(
+    const std::unique_ptr<Sequence> sequence, 
+    std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& index) {
+    
+    std::vector<minimizers::Kmer> minimizers = minimizers::Minimize(sequence->data_.c_str(), 
+                                                                    sequence->data_.size(), 
+                                                                    kmer_len, window_len);
+    for (auto minimizer : minimizers) {
+        index[std::get<0>(minimizer)].emplace_back(std::make_pair(std::get<1>(minimizer), std::get<2>(minimizer)));
+    }
+}
+
+void makeCleanedReferenceIndex(
+    const std::unique_ptr<Sequence> sequence, 
+    std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& index) {
+    
+    std::cout << "Making reference index..." << std::endl;
+    makeIndex(sequence, index);
+    std::vector<std::pair<unsigned int, unsigned int>> minimizers_occurance;
+    minimizers_occurance.reserve(index.size());
     int num_of_singletons = 0;
-    for (int i = 0; i < int(sequences.size()); i++) {
-        std::vector<minimizers::Kmer> minimizers = minimizers::Minimize(sequences[i]->data_.c_str(), 
-                                                                        sequences[i]->data_.size(), 
-                                                                        kmer_len, window_len);
-        for (int j = 0; j < int(minimizers.size()); j++) {
-            minimizers_map[std::get<0>(minimizers[j])]++;
+    for (auto& entry : index) {
+        if (entry.second.size() == 1) num_of_singletons++;
+        minimizers_occurance.emplace_back(std::make_pair(entry.second.size(), entry.first));
+    }
+    std::cout << "Sorting reference minimizers by occurance..." << std::endl;
+    sort(minimizers_occurance.begin(), minimizers_occurance.end(), std::greater<std::pair<unsigned int, unsigned int>>());
+    size_t minimizers_to_skip = std::ceil(index.size() * frequency);
+    if (minimizers_to_skip >= index.size()) minimizers_to_skip = index.size() - 1;
+    
+    std::cout << "Number of distinct minimizers: " << index.size() << std::endl;
+    std::cout << "Fraction of singletons: " << ((double) num_of_singletons / index.size()) << std::endl;
+    std::cout << "Number of occurrences of the most frequent minimizer with top " << frequency * 100
+              << "% most frequent ignored: " << minimizers_occurance[minimizers_to_skip] << std::endl;
+    
+    std::cout << "Removing too frequent minimizers from reference index..." << std::endl;
+    for (int i = 0; i < minimizers_to_skip; i++) {
+        index.erase(minimizers_occurance[i].second);
+    }
+    std::cout << "Done." << std::endl;
+}
+
+// INSPIRED BY https://www.geeksforgeeks.org/construction-of-longest-monotonically-increasing-subsequence-n-log-n/?ref=rp
+int GetCeilIndex(std::vector<Match>& curr_cluster, std::vector<unsigned int>& T, int l, int r, 
+                 unsigned int key) 
+{ 
+    while (r - l > 1) { 
+        int m = l + (r - l) / 2; 
+        if (std::get<2>(curr_cluster[T[m]]) >= key) 
+            r = m; 
+        else
+            l = m; 
+    } 
+  
+    return r; 
+} 
+
+// INSPIRED BY https://www.geeksforgeeks.org/construction-of-longest-monotonically-increasing-subsequence-n-log-n/?ref=rp
+unsigned int longestIncreasingSubsequence(
+    std::vector<Match>& curr_cluster,
+    std::vector<Match>& result) {
+    
+    // Add boundary case, when array n is zero 
+    // Depend on smart pointers 
+    // curr_cluster = arr in comments
+    size_t n = curr_cluster.size();
+    std::vector<unsigned int> tailIndices(n, 0); // Initialized with 0 
+    std::vector<unsigned int> prevIndices(n, -1); // initialized with -1 
+  
+    unsigned int len = 1; // it will always point to empty location 
+    for (int i = 1; i < int(n); i++) { 
+        if (std::get<2>(curr_cluster[i]) < std::get<2>(curr_cluster[tailIndices[0]])) { 
+            // new smallest value 
+            tailIndices[0] = i; 
+        } 
+        else if (std::get<2>(curr_cluster[i]) > std::get<2>(curr_cluster[tailIndices[len - 1]])) { 
+            // arr[i] wants to extend largest subsequence 
+            prevIndices[i] = tailIndices[len - 1]; 
+            tailIndices[len++] = i; 
+        } 
+        else { 
+            // arr[i] wants to be a potential condidate of 
+            // future subsequence 
+            // It will replace ceil value in tailIndices 
+            int pos = GetCeilIndex(curr_cluster, tailIndices, -1, 
+                                   len - 1, std::get<2>(curr_cluster[i])); 
+  
+            prevIndices[i] = tailIndices[pos - 1]; 
+            tailIndices[pos] = i; 
+        } 
+    } 
+  
+    std::cout << "LIS of given input" << std::endl; 
+    for (int i = tailIndices[len - 1]; i >= 0; i = prevIndices[i]) 
+        std::cout << std::get<2>(curr_cluster[i]) << " "; 
+    std::cout << std::endl; 
+  
+    return len;
+
+}
+
+void splitIntoClusters(
+    std::vector<Match>& matches,
+    std::vector<std::vector<Match>>& match_clusters) {
+
+    std::vector<Match> curr_cluster;
+    curr_cluster.emplace_back(matches[0]);
+    for (int i = 1; i < int(matches.size()); i++) {
+        if (std::get<0>(matches[i]) != std::get<0>(matches[i - 1]) ||
+            std::get<1>(matches[i]) - std::get<1>(matches[i - 1]) >= EPSILON_BAND) {
+
+            match_clusters.emplace_back(curr_cluster);
+            curr_cluster.clear()
+        }
+        curr_cluster.emplace_back(matches[i]);
+    }
+    // Last cluster
+    match_clusters.emplace_back(curr_cluster);
+}
+
+void findMatchClusters(
+    std::vector<std::vector<Match>>& match_clusters,
+    std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& fragment_index,
+    std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& reference_index) {
+    
+    std::vector<Match> matches;
+    for (auto f_entry : fragment_index) {
+        if (reference_index.count(f_entry.first) != 0) {
+            for (auto f_location : f_entry.second) {
+                for (auto r_location : reference_index[f_entry.first]) {
+                    bool diff_strand = f_location.second ^ r_location.second;
+                    unsigned int relative_position;
+                    if (diff_strand) {
+                        relative_position = f_location.first + r_location.first;
+                    } else {
+                        relative_position = f_location.first - r_location.first;
+                    }
+                    matches.emplace_back(std::make_tuple(diff_strand, relative_position, r_location.first));
+                }
+            }
         }
     }
-    
-    std::vector<unsigned int> minimizers_vec;
-    minimizers_vec.reserve(minimizers_map.size());
-    for(auto& entry : minimizers_map) {
-        if (entry.second == 1) num_of_singletons++;
-        minimizers_vec.push_back(entry.second);
-    }
-    sort(minimizers_vec.begin(), minimizers_vec.end(), std::greater<>());
-    size_t minimizers_to_skip = std::ceil(minimizers_map.size() * frequency);
-    if (minimizers_to_skip >= minimizers_map.size()) minimizers_to_skip = minimizers_map.size() - 1;
 
-    std::cout << "Number of distinct minimizers: " << minimizers_map.size() << std::endl;
-    std::cout << "Fraction of singletons: " << ((double) num_of_singletons / minimizers_map.size()) << std::endl;
-    std::cout << "Number of occurrences of the most frequent minimizer with top " << frequency * 100
-              << "% most frequent ignored: " << minimizers_vec[minimizers_to_skip] << std::endl;
+    if (!matches.empty()) {
+        sort(matches.begin(), matches.end(), matchComparator);
+        splitIntoClusters(matches, match_clusters);
+    }
+
+}
+
+CandidateRegion findBestMapping(std::vector<std::vector<Match>>& match_clusters) {
+    return std::make_tuple(1,2,3,4,true);
+}
+
+std::string mapFragmentsToReference(
+    const std::vector<std::unique_ptr<Sequence>>& fragments,
+    const std::unique_ptr<Sequence> reference,
+    std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& reference_index,
+    int fragments_begin, int fragments_end) {  // vidi jel zadnja dva parametra moraju biti reference il nesto 
+
+    std::string result = "";
+    for (int i = fragments_begin; i < fragments_end; i++) {
+        std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> fragment_index;
+        makeIndex(fragments[i], fragment_index);
+        std::vector<std::vector<Match>> match_clusters;
+        findMatchClusters(match_clusters, fragment_index, reference_index);
+        if(match_clusters.empty()) {
+            // hmmm idk smisli nes
+            continue;
+        }
+        CandidateRegion candidate_region = findBestMapping(match_clusters);
+        std::string paf = getPaf(fragments[i], reference, candidate_region);
+        result += paf + "\n";
+    }
+    return result;
 }
 
 void processGenomes(
