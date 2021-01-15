@@ -23,22 +23,22 @@ matrix:
             - llvm-toolchain-trusty-5.0
           packages:
             - cmake
-            - clang-5.0
+            - clang-10.0
             - libstdc++-7-dev
       env:
-        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+        - MATRIX_EVAL="CC=clang-10.0 && CXX=clang++-10.0"
 
     - os: osx
       compiler: gcc
-      osx_image: xcode8
+      osx_image: xcode12
       env:
         - MATRIX_EVAL="brew install gcc && CC=gcc-7 && CXX=g++-7"
     
     - os: osx
       compiler: clang
-      osx_image: xcode9.4
+      osx_image: xcode12
       env:
-        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+        - MATRIX_EVAL="CC=clang-10.0 && CXX=clang++-10.0"
 
 before_install:
 - eval "${MATRIX_EVAL}"
