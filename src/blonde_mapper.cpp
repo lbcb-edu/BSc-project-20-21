@@ -11,12 +11,13 @@
 #include "blonde_alignment.h"
 #include "blonde_minimizers.h"
 
-#define VERSION "v0.1.4"
+#define VERSION "v0.1.5"
 
 namespace blonde {
 
 constexpr int LENGTH_LIMIT = 5000;
 constexpr int EPSILON_BAND = 500;
+constexpr int MAPPING_QUALITY = 255;
 
 static int help_flag = 0;         /* Flag set by �--help�.    */
 static int version_flag = 0;      /* Flag set by �--version�. */
@@ -27,6 +28,8 @@ static int gap_cost = -1;         /* Flag set by �-g�. */
 static double frequency = 0.001;  /* Flag set by �-f�. */
 static int kmer_len = 15;         /* Flag set by �-k�. */
 static int window_len = 5;        /* Flag set by �-w�. */
+static int cigar_flag = 0;        /* Flag set by �-c�. */
+static int thread_num = 1;        /* Flag set by �-t�. */
 
 class Sequence {
 public:
@@ -150,7 +153,7 @@ int GetCeilIndex(std::vector<Match>& curr_cluster, std::vector<unsigned int>& T,
 } 
 
 // INSPIRED BY https://www.geeksforgeeks.org/construction-of-longest-monotonically-increasing-subsequence-n-log-n/?ref=rp
-unsigned int longestIncreasingSubsequence(
+void longestIncreasingSubsequence(
     std::vector<Match>& curr_cluster,
     std::vector<Match>& result) {
     
@@ -184,38 +187,104 @@ unsigned int longestIncreasingSubsequence(
         } 
     } 
   
-    std::cout << "LIS of given input" << std::endl; 
+    std::vector<unsigned int> lisIndexes;
+    lisIndexes.reserve(len);
     for (int i = tailIndices[len - 1]; i >= 0; i = prevIndices[i]) 
-        std::cout << std::get<2>(curr_cluster[i]) << " "; 
-    std::cout << std::endl; 
-  
-    return len;
-
+        lisIndexes.emplace_back(i);
+    std::reverse(lisIndexes.begin(), lisIndexes.end());
+    for(auto i : lisIndexes) {
+        result.emplace_back(curr_cluster[i]);
+    }
+    return;
 }
 
-void splitIntoClusters(
+unsigned int getQueryLoc(Match& x) {
+    if (std::get<0>(x)) {
+        return std::get<1>(x) - std::get<2>(x);
+    } else {
+        return std::get<1>(x) + std::get<2>(x);
+    }
+}
+
+unsigned int getRefLoc(Match& x) {
+    return std::get<2>(x);
+}
+
+unsigned int getRelStrandString(Match& x) {
+    return std::get<0>(x) ? '+' : '-';
+}
+
+int kmerOverlap(unsigned int prev, unsigned int curr) {
+    if (curr - prev < kmer_len) {
+        return curr - prev;
+    } else {
+        return kmer_len;
+    }
+}
+
+int col10Approx(std::vector<Match>& lis_of_cluster) {
+    int approx_val_q = kmer_len;
+    int approx_val_r = kmer_len;
+    unsigned int prev_q = getQueryLoc(lis_of_cluster[0]);
+    unsigned int prev_r = getRefLoc(lis_of_cluster[0]);
+    bool first = true;
+    for (auto match : lis_of_cluster) {
+        if (first) {
+            first = false;
+            continue;
+        }
+        unsigned int curr_q = getQueryLoc(match);
+        unsigned int curr_r = getRefLoc(match);
+        approx_val_q += kmerOverlap(prev_q, curr_q);
+        approx_val_r += kmerOverlap(prev_r, curr_r);
+        prev_q = curr_q;
+        prev_r = curr_r;
+    }
+    return std::min(approx_val_r, approx_val_q);
+}
+
+void splitIntoClustersAndFindBest(
     std::vector<Match>& matches,
-    std::vector<std::vector<Match>>& match_clusters) {
+    std::vector<Match>& match_cluster) {
 
     std::vector<Match> curr_cluster;
+    int max_col10 = 0;
     curr_cluster.emplace_back(matches[0]);
-    for (int i = 1; i < int(matches.size()); i++) {
-        if (std::get<0>(matches[i]) != std::get<0>(matches[i - 1]) ||
+    for (int i = 1; i <= int(matches.size()); i++) {
+        if (i == int(matches.size()) ||
+            std::get<0>(matches[i]) != std::get<0>(matches[i - 1]) ||
             std::get<1>(matches[i]) - std::get<1>(matches[i - 1]) >= EPSILON_BAND) {
-
-            match_clusters.emplace_back(curr_cluster);
+            
+            std::vector<Match> lis_of_cluster;
+            longestIncreasingSubsequence(curr_cluster, lis_of_cluster);
+            int curr_col10 = col10Approx(lis_of_cluster);
+            if (curr_col10 > max_col10) {
+                max_col10 = curr_col10;
+                match_cluster.clear();
+                match_cluster = lis_of_cluster;
+            }
             curr_cluster.clear()
         }
         curr_cluster.emplace_back(matches[i]);
     }
-    // Last cluster
-    match_clusters.emplace_back(curr_cluster);
 }
 
-void findMatchClusters(
-    std::vector<std::vector<Match>>& match_clusters,
+bool matchComparator(const Match& a, const Match& b) {
+    if (std::get<0>(a) != std::get<0>(b)) {
+        return !std::get<0>(a);
+    } else {
+        if(std::get<1>(a) != std::get<1>(b)) {
+            return std::get<1>(a) < std::get<1>(b);
+        } else {
+            return std::get<2>(a) < std::get<2>(b);
+        }
+    }
+}
+
+void bestMatchCluster(
     std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& fragment_index,
-    std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& reference_index) {
+    std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& reference_index,
+    std::vector<Match>& match_cluster) {
     
     std::vector<Match> matches;
     for (auto f_entry : fragment_index) {
@@ -237,13 +306,70 @@ void findMatchClusters(
 
     if (!matches.empty()) {
         sort(matches.begin(), matches.end(), matchComparator);
-        splitIntoClusters(matches, match_clusters);
+        splitIntoClustersAndFindBest(matches, match_cluster);
     }
 
 }
 
-CandidateRegion findBestMapping(std::vector<std::vector<Match>>& match_clusters) {
-    return std::make_tuple(1,2,3,4,true);
+std::string getPaf(
+    const std::unique_ptr<Sequence> fragment,
+    const std::unique_ptr<Sequence> reference,
+    std::vector<Match>& match_cluster) {
+
+    unsigned int q_begin = getQueryLoc(match_cluster.front());
+    unsigned int q_end = getQueryLoc(match_cluster.back()) + kmer_len;
+    unsigned int t_begin = getRefLoc(match_cluster.front());
+    unsigned int t_end = getRefLoc(match_cluster.back()) + kmer_len;
+
+    std::string result = fragment->name_ +                            '\t' +
+                         fragment->data_.size() +                     '\t' +
+                         std::to_string(q_begin) +                    '\t' +
+                         std::to_string(q_end) +                      '\t' +
+                         getRelStrandString(match_cluster.front()) +  '\t' +
+                         reference->name_ +                           '\t' +
+                         reference->data_.size() +                    '\t' +
+                         std::to_string(t_begin) +                    '\t' +
+                         std::to_string(t_end) +                      '\t' +
+                         std::to_string(col10Approx(match_cluster)) + '\t';
+    
+    std::string cigar;
+    if (cigar_flag) {
+        unsigned int target_begin;
+
+        alignment::Align(fragment.data_.c_str() + q_begin,
+                         q_end - q_begin,
+                         fragment.data_.c_str() + t_begin,
+                         t_end - t_begin,
+                         (alignment::AlignmentType) algorithm,
+                         match_cost,
+                         mismatch_cost,
+                         gap_cost,
+                         &cigar,
+                         &target_begin);
+        int col10 = 0;
+        int col11 = 0;
+        int num = 0;
+        for (auto x : cigar) {
+            if (std::isdigit(x)) {
+                num *= 10;
+                num += std::atoi(&x);
+            } else {
+                if (x == '=') col10 += num;
+                if (x != 'S') col11 += num;
+                num = 0;
+            }
+        }
+        result += std::to_string(col10) + '\t' +
+                  std::to_string(col11) + '\t';
+    } else {
+        int col11_approx = std::max(q_end - q_begin, t_end - t_begin);
+        resut += std::to_string(col10Approx(match_cluster)) + '\t' +
+                 std::to_string(col11_approx) +               '\t';
+    }
+
+    result += std::to_string(MAPPING_QUALITY) + '\t';
+    if (cigar_flag) result += "cg:Z:" + cigar;
+    return result;
 }
 
 std::string mapFragmentsToReference(
@@ -256,14 +382,13 @@ std::string mapFragmentsToReference(
     for (int i = fragments_begin; i < fragments_end; i++) {
         std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> fragment_index;
         makeIndex(fragments[i], fragment_index);
-        std::vector<std::vector<Match>> match_clusters;
-        findMatchClusters(match_clusters, fragment_index, reference_index);
-        if(match_clusters.empty()) {
+        std::vector<Match> match_cluster;
+        bestMatchCluster(fragment_index, reference_index, match_cluster);
+        if(match_cluster.empty()) {
             // hmmm idk smisli nes
             continue;
         }
-        CandidateRegion candidate_region = findBestMapping(match_clusters);
-        std::string paf = getPaf(fragments[i], reference, candidate_region);
+        std::string paf = getPaf(fragments[i], reference, match_cluster);
         result += paf + "\n";
     }
     return result;
@@ -335,6 +460,8 @@ const std::string HELP_MESSAGE = "blonde_mapper usage: \n\n"
                                  "-k <X>           sets the kmer length to to X. default is 15 \n"
                                  "-w <X>           sets the minimizer window length to X. default is 5 \n"
                                  "-f <X>           sets the fraction of top minimizers to ignore to X. default is 0.001 \n"
+                                 "-c <X>           if present the cigar string will be calculated \n"
+                                 "-t <X>           sets the number of threads, default is 1 \n"
                                  "\nblonde_mapper takes two filenames as command line arguments: \n"
                                  "The first file will contain a reference genome in FASTA format,\n"
                                  "while the second file will contain a set of fragments in either\n"
@@ -410,6 +537,14 @@ int main (int argc, char **argv) {
             frequency = std::stod(optarg);
             break;
 
+        case 'c':
+            cigar_flag = 1;
+            break;
+        
+        case 't':
+            thread_num = std::stoi(optarg);
+            break;
+        
         case '?':
             /* getopt_long already printed an error message. */
             break;
