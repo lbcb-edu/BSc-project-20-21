@@ -14,11 +14,10 @@ if (NOT TARGET bioparser)
 endif ()
 
 add_subdirectory(orange_alignment)
-
-#target_link_directories(${PROJECT_NAME} PUBLIC orange_alignment)
-#target_link_directories(${PROJECT_NAME} PRIVATE orange_alignment)
+add_subdirectory(orange_minimizer)
 
 target_link_libraries(${PROJECT_NAME} bioparser orange_alignment)
+target_link_libraries(${PROJECT_NAME} bioparser orange_minimizer)
 
 # Setup testing
 #enable_testing()
@@ -28,6 +27,5 @@ target_link_libraries(${PROJECT_NAME} bioparser orange_alignment)
 #add_executable(_test
  #   orange_mapper_test.cpp
 #)
-
 #target_link_libraries(test orange_mapper GTest::Main)
 
