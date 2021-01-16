@@ -3,7 +3,9 @@
 #include <getopt.h>
 
 #include <algorithm>
+#include <ios>
 #include <iostream>
+#include <map>
 #include <random>
 #include <unordered_map>
 
@@ -11,6 +13,7 @@
 #include "bioparser/fastq_parser.hpp"
 #include "blue_alignment.hpp"
 #include "blue_minimizers.hpp"
+#include "matcher.hpp"
 
 static constexpr option options[] = {
     {"algorithm", required_argument, nullptr, 'a'},
@@ -185,6 +188,98 @@ std::vector<std::unique_ptr<Sequence>> Parse(const std::string& file) {
   return bioparser::Parser<Sequence>::Create<T>(file)->Parse(-1);
 }
 
+// creates index of distinct minimizers, ignoring too frequent sequences
+MinimizerIndex CreateMinimizerIndex(std::unique_ptr<Sequence>& sequence,
+                                    int8_t kmer_len, int8_t window_len,
+                                    double ignored_fraction) {
+  auto minimizers = blue::Minimize(
+      sequence->data_.c_str(), sequence->data_.size(), kmer_len, window_len);
+
+  MinimizerIndex index;
+  for (auto& [kmer, pos, origin] : minimizers)
+    index[kmer].emplace_back(pos, origin);
+
+  unsigned ignore_size = ignored_fraction * index.size();
+  std::multimap<unsigned, unsigned> ignored;  // count -> kmer
+
+  for (auto& [kmer, vec] : index) {
+    ignored.emplace(vec.size(), kmer);
+    if (ignored.size() > ignore_size)
+      ignored.erase(ignored.begin());  // first elem is smallest
+  }
+
+  for (auto& [size, kmer] : ignored) index.erase(kmer);
+  return index;
+}
+
+// Longest Increasing Subsequence | O(n*logn) | based on patience sort
+Subsequence LIS(std::vector<Match>& matches) {
+  if (matches.size() == 0) return {0, 0, 0};
+
+  std::vector<unsigned> ends;  // stores indexes of current end-elements,
+
+  auto comp = [&ends, &matches](auto const& i, auto const& j) {
+    return matches[i].ref_pos < matches[j].ref_pos;
+  };
+
+  for (unsigned i = 0; i < matches.size(); i++) {
+    auto it = std::lower_bound(ends.begin(), ends.end(), i, comp);
+
+    if (it == ends.end()) {
+      ends.push_back(i);
+    } else {
+      *it = i;
+    }
+  }
+
+  return {*ends.begin(), *(ends.end() - 1), ends.size()};
+}
+
+// maps fragment to reference, prints mapping in PAF
+void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
+         std::unique_ptr<Sequence>& fragment, int8_t kmer_len,
+         int8_t window_len) {
+  std::vector<blue::Kmer> frag_minimizers = blue::Minimize(
+      fragment->data_.c_str(), fragment->data_.size(), kmer_len, window_len);
+
+  // matches[0] - same strand, matches[1] - different strand
+  std::vector<std::vector<Match>> matches(2);
+
+  for (auto [frag_val, frag_pos, frag_origin] : frag_minimizers) {
+    if (reference_index.count(frag_val)) {
+      for (auto [ref_pos, ref_origin] : reference_index[frag_val])
+        matches[frag_origin ^ ref_origin].push_back({frag_pos, ref_pos});
+    }
+  }
+
+  unsigned strand = 0;
+  Subsequence best_seq = {0, 0, 0};
+
+  for (unsigned i = 0; i < matches.size(); i++) {
+    Subsequence s = LIS(matches[i]);
+    if (s.size > best_seq.size) {
+      best_seq = s;
+      strand = i;
+    }
+  }
+
+  // PAF
+  std::cout << "Query name: \t" << fragment->name_ << "\n"
+            << "Query length: \t" << fragment->data_.size() << "\n"
+            << "Query start: \t" << matches[strand][best_seq.beg].frag_pos
+            << "\n"
+            << "Query end: \t" << matches[strand][best_seq.end].frag_pos << "\n"
+            << "Relative strand: " << (strand ? '-' : '+') << "\n"
+            << "Target name: \t" << reference->name_ << "\n"
+            << "Target length: \t" << reference->data_.size() << "\n"
+            << "Target start: \t" << matches[strand][best_seq.beg].ref_pos
+            << "\n"
+            << "Target end: \t" << matches[strand][best_seq.end].ref_pos << "\n"
+            << std::endl;
+
+  // TODO: column 10,11,12,13
+}
+
 int main(int argc, char* argv[]) {
   int8_t match_cost = 5;
   int8_t mismatch_cost = -4;
@@ -295,5 +390,16 @@ int main(int argc, char* argv[]) {
   std::cout << "Fragments minimizers" << std::endl;
   MinimizerStats(fragments, kmer_len, window_len, ignored_fraction);
 
+  // MAPPING
+  std::ios_base::sync_with_stdio(false);
+
+  for (auto& ref : reference) {
+    MinimizerIndex reference_index =
+        CreateMinimizerIndex(ref, kmer_len, window_len, ignored_fraction);
+
+    for (auto& frag : fragments) {
+      Map(reference_index, ref, frag, kmer_len, window_len);
+    }
+  }
   return 0;
 }
