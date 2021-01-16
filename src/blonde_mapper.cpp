@@ -96,7 +96,7 @@ void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments,
 }
 
 void makeIndex(
-    const std::unique_ptr<Sequence> sequence, 
+    const std::unique_ptr<Sequence>& sequence, 
     std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& index) {
     
     std::vector<minimizers::Kmer> minimizers = minimizers::Minimize(sequence->data_.c_str(), 
@@ -108,7 +108,7 @@ void makeIndex(
 }
 
 void makeCleanedReferenceIndex(
-    const std::unique_ptr<Sequence> sequence, 
+    const std::unique_ptr<Sequence>& sequence, 
     std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& index) {
     
     std::cout << "Making reference index..." << std::endl;
@@ -128,7 +128,7 @@ void makeCleanedReferenceIndex(
     std::cout << "Number of distinct minimizers: " << index.size() << std::endl;
     std::cout << "Fraction of singletons: " << ((double) num_of_singletons / index.size()) << std::endl;
     std::cout << "Number of occurrences of the most frequent minimizer with top " << frequency * 100
-              << "% most frequent ignored: " << minimizers_occurance[minimizers_to_skip] << std::endl;
+              << "% most frequent ignored: " << minimizers_occurance[minimizers_to_skip].first << std::endl;
     
     std::cout << "Removing too frequent minimizers from reference index..." << std::endl;
     for (int i = 0; i < minimizers_to_skip; i++) {
@@ -210,7 +210,7 @@ unsigned int getRefLoc(Match& x) {
     return std::get<2>(x);
 }
 
-unsigned int getRelStrandString(Match& x) {
+char getRelStrandString(Match& x) {
     return std::get<0>(x) ? '+' : '-';
 }
 
@@ -263,7 +263,7 @@ void splitIntoClustersAndFindBest(
                 match_cluster.clear();
                 match_cluster = lis_of_cluster;
             }
-            curr_cluster.clear()
+            curr_cluster.clear();
         }
         curr_cluster.emplace_back(matches[i]);
     }
@@ -312,8 +312,8 @@ void bestMatchCluster(
 }
 
 std::string getPaf(
-    const std::unique_ptr<Sequence> fragment,
-    const std::unique_ptr<Sequence> reference,
+    const std::unique_ptr<Sequence>& fragment,
+    const std::unique_ptr<Sequence>& reference,
     std::vector<Match>& match_cluster) {
 
     unsigned int q_begin = getQueryLoc(match_cluster.front());
@@ -322,12 +322,12 @@ std::string getPaf(
     unsigned int t_end = getRefLoc(match_cluster.back()) + kmer_len;
 
     std::string result = fragment->name_ +                            '\t' +
-                         fragment->data_.size() +                     '\t' +
+                         std::to_string(fragment->data_.size()) +     '\t' +
                          std::to_string(q_begin) +                    '\t' +
                          std::to_string(q_end) +                      '\t' +
                          getRelStrandString(match_cluster.front()) +  '\t' +
                          reference->name_ +                           '\t' +
-                         reference->data_.size() +                    '\t' +
+                         std::to_string(reference->data_.size()) +    '\t' +
                          std::to_string(t_begin) +                    '\t' +
                          std::to_string(t_end) +                      '\t' +
                          std::to_string(col10Approx(match_cluster)) + '\t';
@@ -336,9 +336,9 @@ std::string getPaf(
     if (cigar_flag) {
         unsigned int target_begin;
 
-        alignment::Align(fragment.data_.c_str() + q_begin,
+        alignment::Align(fragment->data_.c_str() + q_begin,
                          q_end - q_begin,
-                         fragment.data_.c_str() + t_begin,
+                         fragment->data_.c_str() + t_begin,
                          t_end - t_begin,
                          (alignment::AlignmentType) algorithm,
                          match_cost,
@@ -363,7 +363,7 @@ std::string getPaf(
                   std::to_string(col11) + '\t';
     } else {
         int col11_approx = std::max(q_end - q_begin, t_end - t_begin);
-        resut += std::to_string(col10Approx(match_cluster)) + '\t' +
+        result += std::to_string(col10Approx(match_cluster)) + '\t' +
                  std::to_string(col11_approx) +               '\t';
     }
 
@@ -374,7 +374,7 @@ std::string getPaf(
 
 std::string mapFragmentsToReference(
     const std::vector<std::unique_ptr<Sequence>>& fragments,
-    const std::unique_ptr<Sequence> reference,
+    const std::unique_ptr<Sequence>& reference,
     std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& reference_index,
     int fragments_begin, int fragments_end) {  // vidi jel zadnja dva parametra moraju biti reference il nesto 
 
@@ -441,9 +441,9 @@ void processGenomes(
     //Minimizers from reference genome and fragments
     std::cout << "\nMINIMIZER INFO:\n";
     std::cout << "Reference genome:\n";
-    printMinimizerInfo(genomes);
-    std::cout << "\nFragments:\n";
-    printMinimizerInfo(fragments);
+    // printMinimizerInfo(genomes);
+    // std::cout << "\nFragments:\n";
+    // printMinimizerInfo(fragments);
 }
 
 /* Modificiran primjer https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html */
