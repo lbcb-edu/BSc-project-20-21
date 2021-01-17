@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.12)
-project (blue_mapper VERSION 0.9.0)
+project (blue_mapper VERSION 0.9.1)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,6 +14,7 @@ configure_file(include/blue_mapper.hpp.in include/blue_mapper.hpp)
 target_include_directories(
   "${PROJECT_NAME}" PUBLIC
   "${PROJECT_BINARY_DIR}/include"
+  "${PROJECT_SOURCE_DIR}/include"
   )
 
 add_subdirectory(blue_minimizers)
