@@ -12,7 +12,7 @@
 #include "blonde_alignment.h"
 #include "blonde_minimizers.h"
 
-#define VERSION "v0.1.6"
+#define VERSION "v0.1.7"
 
 namespace blonde {
 
@@ -350,7 +350,7 @@ std::string getPaf(
     bool is_reverse_complement = false;
     if (std::get<0>(match_cluster.front())) {
         q_begin = getQueryLoc(match_cluster.back());
-        q_end = getQueryLoc(match_cluster.front()) + kmer_len;
+        q_end = getQueryLoc(match_cluster.front()) + kmer_len - 1;
         is_reverse_complement = true;
     } else {
         q_begin = getQueryLoc(match_cluster.front());
