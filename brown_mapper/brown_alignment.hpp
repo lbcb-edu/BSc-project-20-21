@@ -4,6 +4,8 @@
     namespace brown {
 
             enum AlignmentType {GLOBAL, LOCAL, SEMIGLOBAL};
+
+            enum AlignmentDirection {DELETION, INSERTION, MATCH, MISMATCH, NONE};
             
             int Align(
                 const char* , unsigned int ,

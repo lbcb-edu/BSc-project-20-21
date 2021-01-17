@@ -6,7 +6,7 @@ TEST(AlignTests, GlobalAlignTest1) {
     unsigned int* target_begin = new unsigned int;
     int result = brown::Align("GATTACA", 7, "GCATGCU", 7, brown::GLOBAL, 1, -1, -1, cigar, target_begin);
     EXPECT_EQ(result, 0);
-    //EXPECT_STREQ((*cigar).c_str(), "1M1I1M1D1M1X1M1X");
+    EXPECT_STREQ((*cigar).c_str(), "1M1I1M1D1M1X1M1X");
     EXPECT_EQ(*target_begin, 0);
     delete cigar;
     delete target_begin;
@@ -15,9 +15,20 @@ TEST(AlignTests, GlobalAlignTest1) {
 TEST(AlignTests, GlobalAlignTest2) {
     std::string* cigar = new std::string;
     unsigned int* target_begin = new unsigned int;
-    int result = brown::Align("GAAC", 4, "CAAGAC", 5, brown::GLOBAL, 1, -1, -2, cigar, target_begin);
+    int result = brown::Align("GAAC", 4, "CAAGAC", 6, brown::GLOBAL, 1, -1, -2, cigar, target_begin);
     EXPECT_EQ(result, -2);
-    //EXPECT_STREQ((*cigar).c_str(), "1X2M2I1M");
+    EXPECT_STREQ((*cigar).c_str(), "1I1X1M1I2M");
+    EXPECT_EQ(*target_begin, 0);
+    delete cigar;
+    delete target_begin;
+}
+
+TEST(AlignTests, GlobalAlignTest3) {
+    std::string* cigar = new std::string;
+    unsigned int* target_begin = new unsigned int;
+    int result = brown::Align("ATCGT", 5, "TGGTG", 5, brown::GLOBAL, 1, -1, -2, cigar, target_begin);
+    EXPECT_EQ(result, -2);
+    EXPECT_STREQ((*cigar).c_str(), "1D1M1X2M1I");
     EXPECT_EQ(*target_begin, 0);
     delete cigar;
     delete target_begin;

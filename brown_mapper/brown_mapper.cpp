@@ -3,6 +3,8 @@
 #include "bioparser/include/bioparser/parser.hpp"
 #include "bioparser/include/bioparser/fastq_parser.hpp"
 #include "bioparser/include/bioparser/fasta_parser.hpp"
+#include "thread_pool/include/thread_pool/thread_pool.hpp"
+#include "thread_pool/include/thread_pool/semaphore.hpp"
 #include "brown_alignment.hpp"
 #include "brown_minimizer.hpp"
 #include <stdlib.h>
@@ -102,6 +104,7 @@ int main(int argc, char* argv[]) {
     brown::AlignmentType type;
     int match, gap, mismatch;
     int kmer_length = DEFAULT_KMER_LENGTH, window_length = DEFAULT_WINDOW_LENGTH;
+    int thread_number;
     double frequency = DEFAULT_MINIMIZER_FREQUENCY; 
 
     bool match_flag;
@@ -110,7 +113,7 @@ int main(int argc, char* argv[]) {
     bool type_flag;
 
     int c;
-    while ((c = getopt_long(argc, argv, "m:g:n:a:k:w:f:hv", long_options, 0)) != -1) {
+    while ((c = getopt_long(argc, argv, "m:g:n:a:k:w:f:t:hv", long_options, 0)) != -1) {
         switch (c){
             case 'h' :
                 std::cerr << help << std::endl;
@@ -120,35 +123,39 @@ int main(int argc, char* argv[]) {
                 return 0;
             case 'm':
                 match = atoi(optarg);
-                std::cout << "Match is : " << optarg << std::endl;
+                std::cerr << "Match is : " << optarg << std::endl;
                 match_flag = true;
                 break;
             case 'n' :
                 mismatch = atoi(optarg);
-                std::cout << "Mismatch is : " << optarg << std::endl;
+                std::cerr << "Mismatch is : " << optarg << std::endl;
                 mismatch_flag = true;
                 break;
             case 'g' :
                 gap = atoi(optarg);
-                std::cout << "Gap is : " << optarg << std::endl;
+                std::cerr << "Gap is : " << optarg << std::endl;
                 gap_flag = true;
                 break;
             case 'a' :
                 type = static_cast<brown::AlignmentType>(atoi(optarg));
-                std::cout << "Allignment type is : " << optarg << std::endl;
+                std::cerr << "Allignment type is : " << optarg << std::endl;
                 type_flag = true;
                 break;
             case 'k' :
                 kmer_length = atoi(optarg);
-                std::cout << "K-mer length is: " << kmer_length << std::endl; //ovo steka
+                std::cerr << "K-mer length is: " << kmer_length << std::endl; //ovo steka
                 break;
             case 'w':
                 window_length = atoi(optarg);
-                std::cout << "Window length is: " << window_length << std::endl; //ovo steka
+                std::cerr << "Window length is: " << window_length << std::endl; //ovo steka
                 break;
             case 'f' :
                 frequency = atof(optarg);   //ovo steka
-                std::cout << "Top f frequent minimizers that will not be taken in account: " << frequency << std::endl;
+                std::cerr << "Top f frequent minimizers that will not be taken in account: " << frequency << std::endl;
+                break;
+            case 't':
+                thread_number = atoi(optarg);
+                std::cerr << "Number of threads: " << thread_number << std::endl;
                 break;
             case '?' :
                 if (optopt == 'm' || optopt == 'n' || optopt == 'g')

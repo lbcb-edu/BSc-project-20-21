@@ -19,26 +19,47 @@ namespace brown {
             int resultColumn = 0;
             //std::cout << "ide radit align\n";
 
-            //int m[query_len + 1][target_len + 1];
             int **m = new int*[query_len + 1];
             for (unsigned int i = 0; i < query_len + 1; i++)
                 m[i] = new int[target_len + 1];
+
+            AlignmentDirection** direction = new AlignmentDirection*[query_len + 1];
+            for (unsigned int i = 0; i < query_len + 1; i++)
+                direction[i] = new AlignmentDirection[target_len + 1];
             
             //std::cout << "ide radit align\n";
             if(type == GLOBAL) {
                 m[0][0]=0;
+                direction[0][0] = NONE;
+
                 for (int i = 1; i < query_len + 1; i++) {
                     m[i][0] = i * gap;
+                    direction[i][0] = DELETION;
                 }
                 for (int j = 1; j < target_len + 1; j++) {
                     m[0][j] = j * gap;
+                    direction[0][j] = INSERTION;
                 }
+                
                 for (int i = 1; i < query_len+1; i++)
                     for (int j = 1; j < target_len+1; j++) {
                         int matchCost;
                         if (query[i-1] == target[j-1]) matchCost=m[i-1][j-1] + match;
                         else matchCost = m[i-1][j-1] + mismatch;
                         m[i][j]=std::max(std::max(matchCost, m[i][j-1] + gap), m[i-1][j] + gap);
+                        
+                        if (m[i][j] == matchCost) {
+                            if (matchCost == m[i-1][j-1] + match)
+                                direction[i][j] = MATCH;
+                            else 
+                                direction[i][j] = MISMATCH;
+                        } 
+                        else if (m[i][j] == m[i][j-1] + gap){
+                            direction[i][j] = INSERTION;
+                        } 
+                        else if (m[i][j] == m[i-1][j] + gap){
+                            direction[i][j] = DELETION;
+                        }
                         
                     }
                 resultRow = query_len;
@@ -48,48 +69,84 @@ namespace brown {
             else if (type == LOCAL) {
                 int maxCell = INT32_MIN;
                 m[0][0] = 0;
-                resultColumn = 0;
-                resultRow = 0;
+                direction[0][0] = NONE;
+                
                 for (int i = 1; i < query_len + 1; i++) {
                     m[i][0] = 0;
+                    direction[i][0] = NONE;
                 }
                 for (int j = 1; j < target_len + 1; j++) {
                     m[0][j] = 0;
+                    direction[0][j] = NONE;
                 }
+
                 for (int i = 1; i < query_len + 1; i++)
                     for (int j = 1; j < target_len + 1; j++) {
                         int matchCost;
                         if (query[i - 1] == target[j - 1]) matchCost = m[i-1][j-1]+match;
                         else matchCost = m[i-1][j-1] + mismatch;
                         m[i][j] = std::max(std::max(0, matchCost), std::max(m[i][j-1] + gap, m[i-1][j] + gap));
-                        //maxCell=std::max(maxCell, m[i][j]);
                         if (m[i][j] > maxCell) {
                             maxCell = m[i][j];
                             resultRow = i;
                             resultColumn = j;
                         }
+
+                        if (m[i][j] == 0) {
+                            direction[i][j] = NONE;
+                        }
+                        else if (m[i][j] == matchCost) {
+                            if (matchCost == m[i-1][j-1] + match)
+                                direction[i][j] = MATCH;
+                            else 
+                                direction[i][j] = MISMATCH;
+                        } 
+                        else if (m[i][j] == m[i][j-1] + gap){
+                            direction[i][j] = INSERTION;
+                        } 
+                        else if (m[i][j] == m[i-1][j] + gap){
+                            direction[i][j] = DELETION;
+                        }
                     }
             }
             else if (type == SEMIGLOBAL){
                 m[0][0] = 0;
+                direction[0][0] = NONE;
                 int maxCell = INT32_MIN;
+
                 for (int i = 1; i < query_len + 1; i++) {
                     m[i][0] = 0;
+                    direction[i][0] = NONE;
                 }
                 for (int j = 1; j < target_len + 1; j++) {
                     m[0][j] = 0;
+                    direction[0][j] = NONE;
                 }
+
                 for (int i = 1; i < query_len + 1; i++)
                     for (int j = 1; j < target_len + 1; j++) {
                         int matchCost;
                         if (query[i - 1] == target[j - 1]) matchCost = m[i-1][j-1]+match;
                         else matchCost = m[i-1][j-1] + mismatch;
                         m[i][j]=std::max(matchCost, std::max(m[i][j-1] + gap, m[i-1][j] + gap));
-                        //maxCell=std::max(maxCell, m[i][j]);
+
                         if (m[i][j] > maxCell && (i == query_len || j == target_len)) {
                             maxCell = m[i][j];
                             resultRow = i;
                             resultColumn = j;
+                        }
+
+                        if (m[i][j] == matchCost) {
+                            if (matchCost == m[i-1][j-1] + match)
+                                direction[i][j] = MATCH;
+                            else 
+                                direction[i][j] = MISMATCH;
+                        } 
+                        else if (m[i][j] == m[i][j-1] + gap){
+                            direction[i][j] = INSERTION;
+                        } 
+                        else if (m[i][j] == m[i-1][j] + gap){
+                            direction[i][j] = DELETION;
                         }
                     }
             }
@@ -104,13 +161,38 @@ namespace brown {
             //int targetLocal;
             if (cigar != nullptr || target_begin !=nullptr) {
                 
-                    while((type==GLOBAL && (resultRow != 0 || resultColumn != 0)) || 
-                            (type==SEMIGLOBAL && (resultRow != 0 && resultColumn != 0)) ||
-                            (type==LOCAL && m[resultRow][resultColumn] != 0)) {
-
-                        if(!(resultRow == 0 || resultColumn == 0)) { 
+                    while(direction[resultRow][resultColumn] != NONE) {
+                    /*while((type==GLOBAL && !(resultRow == 0 && resultColumn == 0)) || 
+                        (type==SEMIGLOBAL && resultRow != 0 && resultColumn != 0) ||
+                        (type==LOCAL && m[resultRow][resultColumn] != 0)) {*/
+                        switch (direction[resultRow][resultColumn]) {
+                            case MATCH:
+                                cigarBeta += "M";
+                                resultColumn--;
+                                resultRow--;
+                                break;
+                            case MISMATCH :
+                                cigarBeta += "X";
+                                resultRow--;
+                                resultColumn--;
+                                break;
+                            case INSERTION :
+                                cigarBeta += "I";
+                                resultColumn--;
+                                break;
+                            case DELETION :
+                                cigarBeta += "D";
+                                resultRow--;
+                                break;
+                            default:
+                                std::cerr << "Direction not allowed" << std::endl;
+                                exit(EXIT_FAILURE);
+                        }
+                        
+                        
+                        /*if(!(resultRow == 0 || resultColumn == 0)) { 
                             //if (type == LOCAL) targetLocal = resultColumn;
-                            if (m[resultRow-1][resultColumn-1] + match == m[resultRow][resultColumn]) {
+                            if (m[resultRow-1][resultColumn-1] + match == m[resultRow][resultColumn] && query[resultRow] == target[resultColumn]) {
                                 cigarBeta += "M";
                                 resultColumn--;
                                 resultRow--;
@@ -134,7 +216,7 @@ namespace brown {
                             //if (type == LOCAL) targetLocal = resultColumn;
                             cigarBeta += "I";
                             resultColumn--;
-                        }
+                        }*/
                         
                     }
             }
@@ -169,9 +251,12 @@ namespace brown {
             }
 
             int result = m[returnRow][returnColumn];
-            for (int i = query_len; i >= 0; i--)
+            for (int i = query_len; i >= 0; i--) {
                 delete[] m[i];
+                delete direction[i];
+            }
 
+            delete[] direction;
             delete[] m;
             //std::cout << "obavio je cijeli align" << std::endl;
             return result;

@@ -4,3 +4,6 @@
 [submodule "brown_mapper/bioparser"]
 	path = brown_mapper/bioparser
 	url = https://github.com/rvaser/bioparser.git
+[submodule "brown_mapper/thread_pool"]
+	path = brown_mapper/thread_pool
+	url = https://github.com/rvaser/thread_pool.git
