@@ -8,4 +8,5 @@ target_link_libraries(
 		blonde_alignment
 		blonde_minimizers
 		bioparser
+                thread_pool
 )

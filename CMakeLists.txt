@@ -13,6 +13,10 @@ if (NOT TARGET bioparser)
   add_subdirectory(vendor/bioparser EXCLUDE_FROM_ALL)
 endif ()
 
+if (NOT TARGET thread_pool)
+  add_subdirectory(vendor/thread_pool EXCLUDE_FROM_ALL)
+endif ()
+
 # Project subdirs 
 add_subdirectory(src)
 # add_subdirectory(test)

@@ -8,15 +8,16 @@
 
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
+#include "thread_pool/thread_pool.hpp"
 #include "blonde_alignment.h"
 #include "blonde_minimizers.h"
 
-#define VERSION "v0.1.5"
+#define VERSION "v0.1.6"
 
 namespace blonde {
 
 constexpr int LENGTH_LIMIT = 5000;
-constexpr int EPSILON_BAND = 500;
+constexpr int EPSILON_BAND = 100;
 constexpr int MAPPING_QUALITY = 255;
 
 static int help_flag = 0;         /* Flag set by �--help�.    */
@@ -57,7 +58,7 @@ public:
 // q_begin, q_end, t_begin, t_end
 using CandidateRegion = std::tuple<unsigned int, unsigned int, unsigned int, unsigned int, bool>;
 // relative strand 0 = same, 1 = different, i - i' / i + i', i', 
-using Match = std::tuple<bool, unsigned int, unsigned int>;
+using Match = std::tuple<bool, int, unsigned int>;
 
 void printReferenceGenomesInfo(const std::vector<std::unique_ptr<Sequence>>& genomes) {
     std::cerr << "Reference genome sequences:\n";
@@ -138,7 +139,7 @@ void makeCleanedReferenceIndex(
 }
 
 // INSPIRED BY https://www.geeksforgeeks.org/construction-of-longest-monotonically-increasing-subsequence-n-log-n/?ref=rp
-int GetCeilIndex(std::vector<Match>& curr_cluster, std::vector<unsigned int>& T, int l, int r, 
+int GetCeilIndex(std::vector<Match>& curr_cluster, std::vector<int>& T, int l, int r, 
                  unsigned int key) 
 { 
     while (r - l > 1) { 
@@ -160,12 +161,12 @@ void longestIncreasingSubsequence(
     // Add boundary case, when array n is zero 
     // Depend on smart pointers 
     // curr_cluster = arr in comments
-    size_t n = curr_cluster.size();
-    std::vector<unsigned int> tailIndices(n, 0); // Initialized with 0 
-    std::vector<unsigned int> prevIndices(n, -1); // initialized with -1 
+    int n = int(curr_cluster.size());
+    std::vector<int> tailIndices(n, 0); // Initialized with 0 
+    std::vector<int> prevIndices(n, -1); // initialized with -1 
   
-    unsigned int len = 1; // it will always point to empty location 
-    for (int i = 1; i < int(n); i++) { 
+    int len = 1; // it will always point to empty location 
+    for (int i = 1; i < int(n); i++) {
         if (std::get<2>(curr_cluster[i]) < std::get<2>(curr_cluster[tailIndices[0]])) { 
             // new smallest value 
             tailIndices[0] = i; 
@@ -178,19 +179,23 @@ void longestIncreasingSubsequence(
         else { 
             // arr[i] wants to be a potential condidate of 
             // future subsequence 
-            // It will replace ceil value in tailIndices 
+            // It will replace ceil value in tailIndices
             int pos = GetCeilIndex(curr_cluster, tailIndices, -1, 
                                    len - 1, std::get<2>(curr_cluster[i])); 
   
-            prevIndices[i] = tailIndices[pos - 1]; 
+            if (pos == 0) {
+                prevIndices[i] = -1;
+            } else {
+                prevIndices[i] = tailIndices[pos - 1]; 
+            }
             tailIndices[pos] = i; 
         } 
-    } 
-  
-    std::vector<unsigned int> lisIndexes;
+    }
+    std::vector<int> lisIndexes;
     lisIndexes.reserve(len);
-    for (int i = tailIndices[len - 1]; i >= 0; i = prevIndices[i]) 
+    for (int i = tailIndices[len - 1]; i >= 0; i = prevIndices[i]) {
         lisIndexes.emplace_back(i);
+    }
     std::reverse(lisIndexes.begin(), lisIndexes.end());
     for(auto i : lisIndexes) {
         result.emplace_back(curr_cluster[i]);
@@ -210,13 +215,13 @@ unsigned int getRefLoc(Match& x) {
     return std::get<2>(x);
 }
 
-char getRelStrandString(Match& x) {
-    return std::get<0>(x) ? '+' : '-';
+std::string getRelStrandString(Match& x) {
+    return std::get<0>(x) ? "+" : "-";
 }
 
 int kmerOverlap(unsigned int prev, unsigned int curr) {
-    if (curr - prev < kmer_len) {
-        return curr - prev;
+    if (std::abs(int(curr - prev)) < kmer_len) {
+        return std::abs(int(curr - prev));
     } else {
         return kmer_len;
     }
@@ -292,7 +297,7 @@ void bestMatchCluster(
             for (auto f_location : f_entry.second) {
                 for (auto r_location : reference_index[f_entry.first]) {
                     bool diff_strand = f_location.second ^ r_location.second;
-                    unsigned int relative_position;
+                    int relative_position;
                     if (diff_strand) {
                         relative_position = f_location.first + r_location.first;
                     } else {
@@ -303,7 +308,6 @@ void bestMatchCluster(
             }
         }
     }
-
     if (!matches.empty()) {
         sort(matches.begin(), matches.end(), matchComparator);
         splitIntoClustersAndFindBest(matches, match_cluster);
@@ -311,15 +315,49 @@ void bestMatchCluster(
 
 }
 
+char complement(char base) {
+    switch(base) {
+    case 'A':
+        return 'T';
+    case 'C':
+        return 'G';
+    case 'G':
+        return 'C';
+    case 'T': 
+        return 'A';
+    }
+    throw "invalid base pair";
+}
+
+std::string reverseComplement(const char* seq, int len) {
+    std::string result = "";
+    char* curr = (char*)seq + len - 1;
+    while(curr != seq) {
+        result += complement(*curr);
+        curr--;
+    }
+    result += complement(*curr);
+    return result;
+}
+
 std::string getPaf(
     const std::unique_ptr<Sequence>& fragment,
     const std::unique_ptr<Sequence>& reference,
     std::vector<Match>& match_cluster) {
 
-    unsigned int q_begin = getQueryLoc(match_cluster.front());
-    unsigned int q_end = getQueryLoc(match_cluster.back()) + kmer_len;
+    unsigned int q_begin;
+    unsigned int q_end;
+    bool is_reverse_complement = false;
+    if (std::get<0>(match_cluster.front())) {
+        q_begin = getQueryLoc(match_cluster.back());
+        q_end = getQueryLoc(match_cluster.front()) + kmer_len;
+        is_reverse_complement = true;
+    } else {
+        q_begin = getQueryLoc(match_cluster.front());
+        q_end = getQueryLoc(match_cluster.back()) + kmer_len - 1;
+    }
     unsigned int t_begin = getRefLoc(match_cluster.front());
-    unsigned int t_end = getRefLoc(match_cluster.back()) + kmer_len;
+    unsigned int t_end = getRefLoc(match_cluster.back()) + kmer_len - 1;
 
     std::string result = fragment->name_ +                            '\t' +
                          std::to_string(fragment->data_.size()) +     '\t' +
@@ -329,16 +367,23 @@ std::string getPaf(
                          reference->name_ +                           '\t' +
                          std::to_string(reference->data_.size()) +    '\t' +
                          std::to_string(t_begin) +                    '\t' +
-                         std::to_string(t_end) +                      '\t' +
-                         std::to_string(col10Approx(match_cluster)) + '\t';
+                         std::to_string(t_end) +                      '\t';
     
     std::string cigar;
     if (cigar_flag) {
         unsigned int target_begin;
 
-        alignment::Align(fragment->data_.c_str() + q_begin,
+        const char* fragment_sequence;
+        std::string rev_compl;
+        if (is_reverse_complement) {
+            rev_compl = reverseComplement(fragment->data_.c_str() + q_begin, q_end - q_begin);
+            fragment_sequence = rev_compl.c_str();
+        } else {
+            fragment_sequence = fragment->data_.c_str() + q_begin;
+        }
+        alignment::Align(fragment_sequence,
                          q_end - q_begin,
-                         fragment->data_.c_str() + t_begin,
+                         reference->data_.c_str() + t_begin,
                          t_end - t_begin,
                          (alignment::AlignmentType) algorithm,
                          match_cost,
@@ -349,6 +394,7 @@ std::string getPaf(
         int col10 = 0;
         int col11 = 0;
         int num = 0;
+        int measure = 0;
         for (auto x : cigar) {
             if (std::isdigit(x)) {
                 num *= 10;
@@ -364,7 +410,7 @@ std::string getPaf(
     } else {
         int col11_approx = std::max(q_end - q_begin, t_end - t_begin);
         result += std::to_string(col10Approx(match_cluster)) + '\t' +
-                 std::to_string(col11_approx) +               '\t';
+                  std::to_string(col11_approx) +               '\t';
     }
 
     result += std::to_string(MAPPING_QUALITY) + '\t';
@@ -385,12 +431,17 @@ std::string mapFragmentsToReference(
         std::vector<Match> match_cluster;
         bestMatchCluster(fragment_index, reference_index, match_cluster);
         if(match_cluster.empty()) {
-            // hmmm idk smisli nes
             continue;
         }
         std::string paf = getPaf(fragments[i], reference, match_cluster);
         result += paf + "\n";
     }
+    return result;
+}
+
+std::string foo(int x) {
+    std::string result = "";
+    result += std::to_string(x) + " kmer_len: " + std::to_string(kmer_len) + " window_len: " + std::to_string(window_len) + " mismatch: " + std::to_string(mismatch_cost);
     return result;
 }
 
@@ -402,48 +453,70 @@ void processGenomes(
     printReferenceGenomesInfo(genomes);
     printFragmentsInfo(fragments, fastq);
 
-    std::vector<Sequence> short_fragments;
-    for (const auto& p : fragments) {
-        if (p->data_.size() < LENGTH_LIMIT) {
-            short_fragments.push_back(*p);
-        }
-    }
+    // ALIGNMENT ZADATAK
+    // std::vector<Sequence> short_fragments;
+    // for (const auto& p : fragments) {
+    //     if (p->data_.size() < LENGTH_LIMIT) {
+    //         short_fragments.push_back(*p);
+    //     }
+    // }
 
-    const Sequence first_fragment = short_fragments[rand() % short_fragments.size()];
-    const Sequence second_fragment = short_fragments[rand() % short_fragments.size()];
+    // const Sequence first_fragment = short_fragments[rand() % short_fragments.size()];
+    // const Sequence second_fragment = short_fragments[rand() % short_fragments.size()];
 
-    unsigned int first_len = first_fragment.data_.size();
-    unsigned int second_len = second_fragment.data_.size();
+    // unsigned int first_len = first_fragment.data_.size();
+    // unsigned int second_len = second_fragment.data_.size();
 
-    std::cout << "\nAligning two random sequences: \n";
-    std::cout << "Target sequence:\n";
-    std::cout << second_fragment.name_ << "\n"; 
-    std::cout << "Query Sequence:\n";
-    std::cout << first_fragment.name_ << "\n";
+    // std::cout << "\nAligning two random sequences: \n";
+    // std::cout << "Target sequence:\n";
+    // std::cout << second_fragment.name_ << "\n"; 
+    // std::cout << "Query Sequence:\n";
+    // std::cout << first_fragment.name_ << "\n";
 
-    std::string cigar;
-    unsigned int target_begin;
+    // std::string cigar;
+    // unsigned int target_begin;
 
-    int64_t align_score = alignment::Align(first_fragment.data_.c_str(),
-                                           first_len,
-                                           second_fragment.data_.c_str(),
-                                           second_len,
-                                           (alignment::AlignmentType)algorithm,
-                                           match_cost,
-                                           mismatch_cost,
-                                           gap_cost,
-                                           &cigar,
-                                           &target_begin);
-    std::cout << "Align result: " << align_score << std::endl;
-    std::cout << "Cigar str: " << cigar << std::endl;
-    std::cout << "Target begin: " << target_begin << std::endl;
+    // int64_t align_score = alignment::Align(first_fragment.data_.c_str(),
+    //                                        first_len,
+    //                                        second_fragment.data_.c_str(),
+    //                                        second_len,
+    //                                        (alignment::AlignmentType)algorithm,
+    //                                        match_cost,
+    //                                        mismatch_cost,
+    //                                        gap_cost,
+    //                                        &cigar,
+    //                                        &target_begin);
+    // std::cout << "Align result: " << align_score << std::endl;
+    // std::cout << "Cigar str: " << cigar << std::endl;
+    // std::cout << "Target begin: " << target_begin << std::endl;
 
     //Minimizers from reference genome and fragments
-    std::cout << "\nMINIMIZER INFO:\n";
-    std::cout << "Reference genome:\n";
+    // std::cout << "\nMINIMIZER INFO:\n";
+    // std::cout << "Reference genome:\n";
     // printMinimizerInfo(genomes);
     // std::cout << "\nFragments:\n";
     // printMinimizerInfo(fragments);
+    
+    // std::cout << "MAPPINGS OF FRAGMENTS:" << std::endl;
+    std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> reference_index;
+    makeCleanedReferenceIndex(genomes.front(), reference_index);
+    // std::string result = mapFragmentsToReference(fragments, genomes.front(), reference_index, 1, 20);
+    // std::cout << result << std::endl;
+    thread_pool::ThreadPool thread_pool{};
+    std::vector<std::future<std::string>> futures;
+    int frag_per_thread = int(fragments.size() / (double)thread_num);
+    int frag_begin = 0;
+    for (int i = 0; i < (thread_num - 1); i++) {
+        futures.emplace_back(thread_pool.Submit(mapFragmentsToReference, std::ref(fragments), std::ref(genomes.front()), std::ref(reference_index), frag_begin, frag_begin + frag_per_thread));
+        frag_begin += frag_per_thread;
+    }
+    futures.emplace_back(thread_pool.Submit(mapFragmentsToReference, std::ref(fragments), std::ref(genomes.front()), std::ref(reference_index), frag_begin, int(fragments.size())));
+
+    for (auto& it : futures) {
+        std::string r = it.get();
+        std::cout << r;
+    }
+    
 }
 
 /* Modificiran primjer https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html */
@@ -490,7 +563,7 @@ int main (int argc, char **argv) {
         /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "hva:m:n:g:k:w:f:",
+        c = getopt_long(argc, argv, "hva:m:n:g:k:w:f:ct:",
                         long_options, &option_index);
 
         /* Detect the end of the options. */
@@ -553,6 +626,10 @@ int main (int argc, char **argv) {
             abort ();
         }
     }
+
+    // For fast I/O
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
 
     if (help_flag) {
         std::cout << HELP_MESSAGE;
