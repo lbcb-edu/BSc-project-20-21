@@ -12,7 +12,7 @@
 #include "blonde_alignment.h"
 #include "blonde_minimizers.h"
 
-#define VERSION "v0.1.8"
+#define VERSION "v0.1.9"
 
 namespace blonde {
 
@@ -65,6 +65,7 @@ void printReferenceGenomesInfo(const std::vector<std::unique_ptr<Sequence>>& gen
     for (int i = 0; i < int(genomes.size()); i++) {
         std::cerr << "\t" << genomes[i]->name_ << " , length = " << genomes[i]->data_.size() << '\n';
     }
+    std::cerr << "\n";
 }
 
 void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments, const bool fastq = false) {
@@ -85,15 +86,15 @@ void printFragmentsInfo(const std::vector<std::unique_ptr<Sequence>>& fragments,
         }
     }
     if (fastq) {
-        std::cout << "FASTQ fragments:\n";
+        std::cerr << "FASTQ fragments:\n";
     } else {
-        std::cout << "FASTA fragments:\n";
+        std::cerr << "FASTA fragments:\n";
     }
     std::cerr << "Number of fragments: " << fragments.size() << '\n';
     std::cerr << "Average length: " << length_sum * 1.0 / fragments.size() << '\n';
     std::cerr << "N50 length: " << N50 << '\n';
     std::cerr << "Minimal length: " << lengths.back() << '\n';
-    std::cerr << "Maximal length: " << lengths.front() << '\n';
+    std::cerr << "Maximal length: " << lengths.front() << "\n\n";
 }
 
 void makeIndex(
@@ -112,7 +113,7 @@ void makeCleanedReferenceIndex(
     const std::unique_ptr<Sequence>& sequence, 
     std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>>& index) {
     
-    std::cout << "Making reference index..." << std::endl;
+    std::cerr << "Making reference index..." << std::endl;
     makeIndex(sequence, index);
     std::vector<std::pair<unsigned int, unsigned int>> minimizers_occurance;
     minimizers_occurance.reserve(index.size());
@@ -121,21 +122,21 @@ void makeCleanedReferenceIndex(
         if (entry.second.size() == 1) num_of_singletons++;
         minimizers_occurance.emplace_back(std::make_pair(entry.second.size(), entry.first));
     }
-    std::cout << "Sorting reference minimizers by occurance..." << std::endl;
+    std::cerr << "Sorting reference minimizers by occurance..." << std::endl;
     sort(minimizers_occurance.begin(), minimizers_occurance.end(), std::greater<std::pair<unsigned int, unsigned int>>());
     size_t minimizers_to_skip = std::ceil(index.size() * frequency);
     if (minimizers_to_skip >= index.size()) minimizers_to_skip = index.size() - 1;
     
-    std::cout << "Number of distinct minimizers: " << index.size() << std::endl;
-    std::cout << "Fraction of singletons: " << ((double) num_of_singletons / index.size()) << std::endl;
-    std::cout << "Number of occurrences of the most frequent minimizer with top " << frequency * 100
+    std::cerr << "Number of distinct minimizers: " << index.size() << std::endl;
+    std::cerr << "Fraction of singletons: " << ((double) num_of_singletons / index.size()) << std::endl;
+    std::cerr << "Number of occurrences of the most frequent minimizer with top " << frequency * 100
               << "% most frequent ignored: " << minimizers_occurance[minimizers_to_skip].first << std::endl;
     
-    std::cout << "Removing too frequent minimizers from reference index..." << std::endl;
+    std::cerr << "Removing too frequent minimizers from reference index..." << std::endl;
     for (int i = 0; i < minimizers_to_skip; i++) {
         index.erase(minimizers_occurance[i].second);
     }
-    std::cout << "Done." << std::endl;
+    std::cerr << "Done." << std::endl << std::endl;
 }
 
 // INSPIRED BY https://www.geeksforgeeks.org/construction-of-longest-monotonically-increasing-subsequence-n-log-n/?ref=rp
@@ -430,6 +431,7 @@ std::string mapFragmentsToReference(
 
     std::string result = "";
     for (int i = fragments_begin; i < fragments_end; i++) {
+        if (cigar_flag && int(fragments[i]->data_.size()) >= LENGTH_LIMIT) continue;
         std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> fragment_index;
         makeIndex(fragments[i], fragment_index);
         std::vector<Match> match_cluster;
