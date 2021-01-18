@@ -12,7 +12,7 @@
 #include "blonde_alignment.h"
 #include "blonde_minimizers.h"
 
-#define VERSION "v0.1.7"
+#define VERSION "v0.1.8"
 
 namespace blonde {
 
@@ -263,7 +263,7 @@ void splitIntoClustersAndFindBest(
             std::vector<Match> lis_of_cluster;
             longestIncreasingSubsequence(curr_cluster, lis_of_cluster);
             int curr_col10 = col10Approx(lis_of_cluster);
-            if (curr_col10 > max_col10) {
+            if (curr_col10 > max_col10 && lis_of_cluster.size() >= 4) {
                 max_col10 = curr_col10;
                 match_cluster.clear();
                 match_cluster = lis_of_cluster;
@@ -345,19 +345,19 @@ std::string getPaf(
     const std::unique_ptr<Sequence>& reference,
     std::vector<Match>& match_cluster) {
 
-    unsigned int q_begin;
-    unsigned int q_end;
+    int q_begin;
+    int q_end;
     bool is_reverse_complement = false;
     if (std::get<0>(match_cluster.front())) {
-        q_begin = getQueryLoc(match_cluster.back());
-        q_end = getQueryLoc(match_cluster.front()) + kmer_len - 1;
+        q_begin = int(getQueryLoc(match_cluster.back()));
+        q_end = int(getQueryLoc(match_cluster.front())) + kmer_len - 1;
         is_reverse_complement = true;
     } else {
-        q_begin = getQueryLoc(match_cluster.front());
-        q_end = getQueryLoc(match_cluster.back()) + kmer_len - 1;
+        q_begin = int(getQueryLoc(match_cluster.front()));
+        q_end = int(getQueryLoc(match_cluster.back())) + kmer_len - 1;
     }
-    unsigned int t_begin = getRefLoc(match_cluster.front());
-    unsigned int t_end = getRefLoc(match_cluster.back()) + kmer_len - 1;
+    int t_begin = int(getRefLoc(match_cluster.front()));
+    int t_end = int(getRefLoc(match_cluster.back())) + kmer_len - 1;
 
     std::string result = fragment->name_ +                            '\t' +
                          std::to_string(fragment->data_.size()) +     '\t' +
@@ -371,42 +371,46 @@ std::string getPaf(
     
     std::string cigar;
     if (cigar_flag) {
-        unsigned int target_begin;
+        try {
+            unsigned int target_begin;
 
-        const char* fragment_sequence;
-        std::string rev_compl;
-        if (is_reverse_complement) {
-            rev_compl = reverseComplement(fragment->data_.c_str() + q_begin, q_end - q_begin);
-            fragment_sequence = rev_compl.c_str();
-        } else {
-            fragment_sequence = fragment->data_.c_str() + q_begin;
-        }
-        alignment::Align(fragment_sequence,
-                         q_end - q_begin,
-                         reference->data_.c_str() + t_begin,
-                         t_end - t_begin,
-                         (alignment::AlignmentType) algorithm,
-                         match_cost,
-                         mismatch_cost,
-                         gap_cost,
-                         &cigar,
-                         &target_begin);
-        int col10 = 0;
-        int col11 = 0;
-        int num = 0;
-        int measure = 0;
-        for (auto x : cigar) {
-            if (std::isdigit(x)) {
-                num *= 10;
-                num += std::atoi(&x);
+            const char* fragment_sequence;
+            std::string rev_compl;
+            if (is_reverse_complement) {
+                rev_compl = reverseComplement(fragment->data_.c_str() + q_begin, q_end - q_begin);
+                fragment_sequence = rev_compl.c_str();
             } else {
-                if (x == '=') col10 += num;
-                if (x != 'S') col11 += num;
-                num = 0;
+                fragment_sequence = fragment->data_.c_str() + q_begin;
             }
+            alignment::Align(fragment_sequence,
+                            q_end - q_begin,
+                            reference->data_.c_str() + t_begin,
+                            t_end - t_begin,
+                            (alignment::AlignmentType) algorithm,
+                            match_cost,
+                            mismatch_cost,
+                            gap_cost,
+                            &cigar,
+                            &target_begin);
+            int col10 = 0;
+            int col11 = 0;
+            int num = 0;
+            int measure = 0;
+            for (auto x : cigar) {
+                if (std::isdigit(x)) {
+                    num *= 10;
+                    num += std::atoi(&x);
+                } else {
+                    if (x == '=') col10 += num;
+                    if (x != 'S') col11 += num;
+                    num = 0;
+                }
+            }
+            result += std::to_string(col10) + '\t' +
+                    std::to_string(col11) + '\t';
+        } catch (...) {
+            return "";
         }
-        result += std::to_string(col10) + '\t' +
-                  std::to_string(col11) + '\t';
     } else {
         int col11_approx = std::max(q_end - q_begin, t_end - t_begin);
         result += std::to_string(col10Approx(match_cluster)) + '\t' +
@@ -430,18 +434,12 @@ std::string mapFragmentsToReference(
         makeIndex(fragments[i], fragment_index);
         std::vector<Match> match_cluster;
         bestMatchCluster(fragment_index, reference_index, match_cluster);
-        if(match_cluster.empty()) {
+        if(match_cluster.empty() || getQueryLoc(match_cluster.front()) == getQueryLoc(match_cluster.back())) {
             continue;
         }
         std::string paf = getPaf(fragments[i], reference, match_cluster);
-        result += paf + "\n";
+        if (paf.length() > 0) result += paf + "\n";
     }
-    return result;
-}
-
-std::string foo(int x) {
-    std::string result = "";
-    result += std::to_string(x) + " kmer_len: " + std::to_string(kmer_len) + " window_len: " + std::to_string(window_len) + " mismatch: " + std::to_string(mismatch_cost);
     return result;
 }
 
