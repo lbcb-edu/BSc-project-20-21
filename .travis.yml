@@ -56,4 +56,5 @@ script:
 - cd build
 - cmake ..
 - make
-- ./brown_mapper_test
+- ./brown_mapper_align_test
+- ./brown_mapper_minim_test

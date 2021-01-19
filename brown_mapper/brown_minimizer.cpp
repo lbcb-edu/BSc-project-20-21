@@ -54,13 +54,20 @@ unsigned int getKmerValue(char* kmer) {
     return value;
 }
 
-unsigned int getReversedKmerValue(unsigned int value) {
-    int number_of_bits = floor(log2(value)) + 1; 
-
-    return ((1 << number_of_bits) - 1) ^ value; 
-}
-
 namespace brown {
+
+    unsigned int getReversedComplKmerValue(unsigned int value, unsigned int length) {
+        int number_of_bits = floor(log2(value)) + 1; 
+
+        unsigned int n = ((1 << number_of_bits) - 1) ^ value; 
+
+        unsigned int ans = 0;
+        for(int i = length * 2 - 2; i >= 0; i-= 2){
+            ans |= (n & 3) << i;
+            n >>= 2;
+        }
+        return ans;
+    }
 
     std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
         const char* sequence, unsigned int sequence_len,
@@ -80,15 +87,15 @@ namespace brown {
             strncpy(kmer, sequence + i, kmer_len);
             kmer_noreverse_value = getKmerValue(kmer);
             //std::cout << "treba zavrsit stoi\n";
-            kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
+            //kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
         
-            if (kmer_noreverse_value < kmer_reverse_value) {
+            //if (kmer_noreverse_value < kmer_reverse_value) {
                 kmer_value = kmer_noreverse_value;
                 origin = true;
-            } else {
+           /*  } else {
                 kmer_value = kmer_reverse_value;
                 origin = false;
-            }
+            } */
             
             if (i == 0 || kmer_value <= std::get<0>(minimizers.back())) 
                 minimizers.push_back(std::make_tuple(kmer_value, i ,origin));
@@ -103,15 +110,15 @@ namespace brown {
             if (std::get<1>(minimizers.back()) >= i) {
                 strncpy(kmer, sequence + i + fraction_length - kmer_len, kmer_len);
                 kmer_noreverse_value = getKmerValue(kmer);
-                kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
+                //kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
                 
-                if (kmer_noreverse_value < kmer_reverse_value) {
+                //if (kmer_noreverse_value < kmer_reverse_value) {
                     kmer_value = kmer_noreverse_value;
                     origin = true;
-                } else {
+                /* } else {
                     kmer_value = kmer_reverse_value;
                     origin = false;
-                }
+                } */
                 
                 if (kmer_value <= std::get<0>(minimizers.back())) 
                     minimizers.push_back(std::make_tuple(kmer_value, i + fraction_length - kmer_len, origin));
@@ -123,15 +130,15 @@ namespace brown {
                 for (unsigned int j = 0; j <= fraction_length -  kmer_len; j++) {                    
                     strncpy(kmer, sequence + i + j, kmer_len);
                     kmer_noreverse_value = getKmerValue(kmer);
-                    kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
+                    //kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
                     
-                    if (kmer_noreverse_value < kmer_reverse_value) {
+                    //if (kmer_noreverse_value < kmer_reverse_value) {
                         kmer_value = kmer_noreverse_value;
                         origin = true;
-                    } else {
+                    /* } else {
                         kmer_value = kmer_reverse_value;
                         origin = false;
-                    }
+                    } */
                     
                     if (j == 0 || kmer_value < minimizer_value) {
                         minimizer_value = kmer_value;
@@ -139,7 +146,7 @@ namespace brown {
                         minimizer_origin = origin;
                     }
                 }
-                minimizers.push_back(std::make_tuple(minimizer_value, minimizer_position, minimizer_origin));
+                minimizers.push_back(std::make_tuple(minimizer_value, minimizer_position + i, minimizer_origin));
             
             }
         }
@@ -153,15 +160,15 @@ namespace brown {
                 for (unsigned int j = i; j <= sequence_len - kmer_len; j++) {                    
                     strncpy(kmer, sequence + j, kmer_len);
                     kmer_noreverse_value = getKmerValue(kmer);
-                    kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
+                    //kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
                     
-                    if (kmer_noreverse_value < kmer_reverse_value) {
+                    //if (kmer_noreverse_value < kmer_reverse_value) {
                         kmer_value = kmer_noreverse_value;
                         origin = true;
-                    } else {
+                    /* } else {
                         kmer_value = kmer_reverse_value;
                         origin = false;
-                    }
+                    } */
 
                     if (j == i || kmer_value < minimizer_value) {
                         minimizer_value = kmer_value;

@@ -16,6 +16,13 @@
 #define DEFAULT_WINDOW_LENGTH 5
 #define DEFAULT_MINIMIZER_FREQUENCY 0.001
 
+std::vector<std::tuple<unsigned int, unsigned int, bool>> reference_minimizers;
+brown::AlignmentType type;
+int match, gap, mismatch;
+int kmer_length = DEFAULT_KMER_LENGTH, window_length = DEFAULT_WINDOW_LENGTH;
+int thread_number;
+double frequency = DEFAULT_MINIMIZER_FREQUENCY;
+
 static option long_options[] = {
     {"help", no_argument, nullptr, 'h'},
     {"version", no_argument, nullptr, 'v'},
@@ -97,15 +104,102 @@ void printsFragmentsStats(std::vector<std::unique_ptr<Sequence>>& fragments) {
     std::cerr << "N50 length: " << N50 << std::endl << std::endl;
 }
 
+bool compareMinimizerOccurence(std::pair<unsigned int, unsigned int>& a, std::pair<unsigned int, unsigned int>& b) { 
+    return a.second < b.second; 
+} 
+
+void cutOffTooFrequentMinimizers(std::vector<std::tuple<unsigned int, unsigned int, bool>>& minimizers) {
+     std::map<unsigned int, unsigned int> minimizers_map;
+    for(unsigned int i = 0; i < minimizers.size(); i++) {
+        unsigned int currentMinimizer = std::get<0>(minimizers[i]);
+        if(minimizers_map.count(currentMinimizer) == 0) 
+            minimizers_map.insert(std::pair<unsigned int,unsigned int>(currentMinimizer, 1));
+        else 
+            minimizers_map[currentMinimizer]++;
+    }
+
+    unsigned int fth_minimizer_index = minimizers_map.size() - 1 - frequency * minimizers_map.size();
+    
+    std::vector<std::pair<unsigned, unsigned int>> sorted_map_values(minimizers_map.begin(), minimizers_map.end());
+    sort(sorted_map_values.begin(), sorted_map_values.end(), compareMinimizerOccurence);
+    sorted_map_values.erase(sorted_map_values.begin(), sorted_map_values.begin() + fth_minimizer_index);
+
+    /*std::multimap<unsigned int, unsigned int> minimizers_multimap;
+    for(std::map<unsigned int, unsigned int>::iterator itr = minimizers_map.begin(); itr != minimizers_map.end(); itr++) {
+        //if(itr->second == 1) reference_genom_singletons++;
+        minimizers_multimap.insert(std::pair<unsigned int, unsigned int>(itr->second, itr->first));
+    }
+    unsigned int fth_minimizer_index = minimizers_multimap.size() - 1 - frequency * minimizers_multimap.size();
+    std::vector<unsigned int> too_frequent_minimizers;
+    for(unsigned int i = minimizers_multimap.size() - 1; i >= fth_minimizer_index; i--)
+        too_frequent_minimizers.emplace_back(minimizers_multimap.en);*/
 
 
-int main(int argc, char* argv[]) {
+}
 
-    brown::AlignmentType type;
-    int match, gap, mismatch;
-    int kmer_length = DEFAULT_KMER_LENGTH, window_length = DEFAULT_WINDOW_LENGTH;
-    int thread_number;
-    double frequency = DEFAULT_MINIMIZER_FREQUENCY; 
+
+int binarySearchIndices(std::vector<int> arr,int item, std::vector<int>& LISArr, int& lastIndex) {
+    //check the boundaries first
+    if (item < arr[LISArr[1]])
+        return 1;
+    if (item > arr[LISArr[lastIndex]])
+        return lastIndex+1;
+        
+    int first = 1;          //index
+    int last = lastIndex;   //index
+    int mid = (first+last)/2;
+    bool found = false;
+    while (!found && first<=last){
+        if (item<arr[LISArr[mid]])
+            last = mid-1;
+        else if(item>arr[LISArr[mid]])
+            first = mid+1;
+        else 
+            found = true;
+        mid = (first+last)/2;
+            
+    }
+    if (item>arr[LISArr[mid]])
+        mid = mid+1;
+    return mid;
+}
+
+int leastIncreasingSequence(std::vector<int> arr) {
+    int i, ind;
+
+    if (arr.size()==0)
+        return 0;
+
+    std::vector<int> LISArr;
+    int lastIndex;
+    LISArr.resize(arr.size()+1,0);
+    LISArr[1] = 0;                 //arr[0] is subsequence of length 1
+    lastIndex = 1;                 //this is the index of the longet sequence found so far
+    for (i = 1; i < arr.size(); i++) {
+        ind = binarySearchIndices(arr,arr[i], LISArr, lastIndex);
+        LISArr[ind] = i;
+        if (ind>lastIndex)      //inserting at end
+            lastIndex = ind;
+    }
+    return lastIndex;           //this is LIS
+}
+
+
+void mapping(Sequence fragment) {
+    std::vector<std::tuple<unsigned int, unsigned int, bool>> fragment_minimizers = brown::Minimize(fragment.sequenceSequence.c_str(), 
+                                                                                                    fragment.sequenceSequence.length(),
+                                                                                                    kmer_length,
+                                                                                                    window_length);
+    
+    cutOffTooFrequentMinimizers(fragment_minimizers);
+    
+    
+                                                                                                 
+}
+
+
+
+int main(int argc, char* argv[]) { 
 
     bool match_flag;
     bool mismatch_flag;
@@ -159,9 +253,9 @@ int main(int argc, char* argv[]) {
                 break;
             case '?' :
                 if (optopt == 'm' || optopt == 'n' || optopt == 'g')
-                    std::cout << "Option -" << optopt << " requires an argument." << std::endl;
+                    std::cerr << "Option -" << optopt << " requires an argument." << std::endl;
                 else 
-                    std::cout << "Unknown option." << std::endl;
+                    std::cerr << "Unknown option." << std::endl;
                 exit(EXIT_FAILURE); 
             default:
                 exit(EXIT_FAILURE);
@@ -217,7 +311,7 @@ int main(int argc, char* argv[]) {
         }
 
         std::cerr << genomLine;
-        std::cout << "velicina vektora referentnog genoma: " << referenceGenom.size() << std::endl;
+        //std::cout << "velicina vektora referentnog genoma: " << referenceGenom.size() << std::endl;
         std::cerr << "Reference genom name: " << referenceGenom.front()->sequenceName << std::endl;
         std::cerr << "Reference genom length: "<< referenceGenom.front()->sequenceSequence.length() << std::endl;
         
@@ -225,7 +319,7 @@ int main(int argc, char* argv[]) {
         printsFragmentsStats(fragments);
         
         if (match_flag == false || mismatch_flag == false || gap_flag == false || type_flag == false) {
-            std::cout << "Some arguments for alignment are missing!" << std::endl;
+            std::cerr << "Some arguments for alignment are missing!" << std::endl;
             exit(EXIT_FAILURE);
         }
 
@@ -254,7 +348,7 @@ int main(int argc, char* argv[]) {
                     << "    Begining of alignemnt is on position " << *target_begin << " of target genom." << std::endl;
        
         
-        std::map<unsigned int, unsigned int> reference_genom_minimizers;
+        std::map<unsigned int, unsigned int> reference_genom_minimizers_map;
         for (unsigned int i = 0; i < referenceGenom.size(); i++) {
             std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers = brown::Minimize(
                                                                     referenceGenom[i]->sequenceSequence.c_str(), 
@@ -262,28 +356,30 @@ int main(int argc, char* argv[]) {
                                                                     kmer_length, window_length);
             for(unsigned int i = 0; i < minimizers.size(); i++) {
                 unsigned int currentMinimizer = std::get<0>(minimizers[i]);
-                if(reference_genom_minimizers.count(currentMinimizer) == 0) 
-                    reference_genom_minimizers.insert(std::pair<unsigned int,unsigned int>(currentMinimizer, 1));
+                if(reference_genom_minimizers_map.count(currentMinimizer) == 0) 
+                    reference_genom_minimizers_map.insert(std::pair<unsigned int,unsigned int>(currentMinimizer, 1));
                 else 
-                    reference_genom_minimizers[currentMinimizer]++;
+                    reference_genom_minimizers_map[currentMinimizer]++;
             }
         }
 
-        unsigned int reference_genom_singletons = 0;
+        /* unsigned int reference_genom_singletons = 0;
         std::multimap<unsigned int, unsigned int> reference_genom_multimap;
-        for(std::map<unsigned int, unsigned int>::iterator itr = reference_genom_minimizers.begin(); itr != reference_genom_minimizers.end(); itr++) {
+        for(std::map<unsigned int, unsigned int>::iterator itr = reference_genom_minimizers_map.begin(); itr != reference_genom_minimizers_map.end(); itr++) {
             if(itr->second == 1) reference_genom_singletons++;
             reference_genom_multimap.insert(std::pair<unsigned int, unsigned int>(itr->second, itr->first));
         }
         
         unsigned int reference_fth_minimizer_index = reference_genom_multimap.size() - 1 - frequency * reference_genom_multimap.size();
-        std::cerr << "Total number of distinct minimizers in reference genom: " << reference_genom_minimizers.size() << "." << std::endl;
-        std::cerr << "The fraction of singletone minimizers in reference genom:  " << ((double) reference_genom_singletons) / reference_genom_minimizers.size()
+        std::cerr << "Total number of distinct minimizers in reference genom: " << reference_genom_minimizers_map.size() << "." << std::endl;
+        std::cerr << "The fraction of singletone minimizers in reference genom:  " << ((double) reference_genom_singletons) / reference_genom_minimizers_map.size()
                     << "." << std::endl;
         std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
-                    << " frequent minimizers are not taken in account: " << reference_fth_minimizer_index << std::endl;
+                    << " frequent minimizers are not taken in account: " << reference_fth_minimizer_index << std::endl; */
         
-        std::map<unsigned int, unsigned int> fragments_minimizers;
+
+        
+        /*std::map<unsigned int, unsigned int> fragments_minimizers;
         for (unsigned int i = 0; i < fragments.size(); i++) {
             std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers = brown::Minimize(
                                                                     fragments[i]->sequenceSequence.c_str(), 
@@ -310,7 +406,17 @@ int main(int argc, char* argv[]) {
         std::cerr << "The fraction of singletone minimizers in fragments:  " << ((double) fragments_singletons) / fragments_minimizers.size()
                     << "." << std::endl;
         std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
-                    << " frequent minimizers are not taken in account: " << fragments_fth_minimizer_index << std::endl;
+                    << " frequent minimizers are not taken in account: " << fragments_fth_minimizer_index << std::endl;*/
+
+    thread_pool::ThreadPool pool(thread_number);
+
+    std::vector<std::future<void>> futures;
+    for (int i = 0; i < fragments.size(); i++) {
+        futures.emplace_back(pool.Submit(mapping, std::cref(*(fragments[i]))));
+    }
+    for (auto& it : futures) {
+          it.wait();
+    }
         
         
     }
