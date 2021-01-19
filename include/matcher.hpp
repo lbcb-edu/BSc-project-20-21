@@ -14,4 +14,5 @@ struct Subsequence {  // holds positions
   unsigned beg;
   unsigned end;
   size_t size;
+  int type;
 };

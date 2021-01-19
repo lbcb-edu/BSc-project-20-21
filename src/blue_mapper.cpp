@@ -209,31 +209,42 @@ MinimizerIndex CreateMinimizerIndex(std::unique_ptr<Sequence>& sequence,
   }
 
   for (auto& [size, kmer] : ignored) index.erase(kmer);
+
   return index;
 }
 
 // Longest Increasing Subsequence | O(n*logn) | based on patience sort
-Subsequence LIS(std::vector<Match>& matches) {
-  if (matches.size() == 0) return {0, 0, 0};
+Subsequence LIS(std::vector<Match>& matches, bool type) {
+  if (matches.size() == 0) return {0, 0, 0, -1};
 
-  std::vector<unsigned> ends;  // stores indexes of current end-elements,
+  std::vector<unsigned> tail;  // stores indexes of current end-elements
+  std::vector<int> prev(matches.size(), -1);
+  // stores 'backpointers' to reconstruct LIS
 
-  auto comp = [&ends, &matches](auto const& i, auto const& j) {
-    return matches[i].ref_pos < matches[j].ref_pos;
+  auto comp = [&matches, &type](auto const& i, auto const& j) {
+    return type ? matches[i].ref_pos > matches[j].ref_pos   // different strand
+                : matches[i].ref_pos < matches[j].ref_pos;  // same strand
   };
 
   for (unsigned i = 0; i < matches.size(); i++) {
-    auto it = std::lower_bound(ends.begin(), ends.end(), i, comp);
+    auto it = std::lower_bound(tail.begin(), tail.end(), i, comp);
 
-    if (it == ends.end()) {
-      ends.push_back(i);
+    if (it != tail.begin()) prev[i] = *(it - 1);
+    if (it == tail.end()) {
+      tail.push_back(i);
     } else {
       *it = i;
     }
   }
 
-  return {*ends.begin(), *(ends.end() - 1), ends.size()};
+  unsigned beg_pos;
+  for (int i = tail.back(); i >= 0; i = prev[i]) beg_pos = i;
+
+  return {beg_pos, tail.back(), tail.size(), type};
 }
+
+// TODO provjerit dal lower_bound vraca tocno za different strand?
+// TODO: pretvori LIS u template da se LIS moze vrtit nad bilo kojim objektima
 
 // maps fragment to reference, prints mapping in PAF
 void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
@@ -252,29 +263,33 @@ void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
     }
   }
 
-  unsigned strand = 0;
-  Subsequence best_seq = {0, 0, 0};
+  auto comp = [](Match const& a, Match const& b) {
+    return a.frag_pos < b.frag_pos;
+  };
 
+  Subsequence best = {0, 0, 0, -1};
   for (unsigned i = 0; i < matches.size(); i++) {
-    Subsequence s = LIS(matches[i]);
-    if (s.size > best_seq.size) {
-      best_seq = s;
-      strand = i;
-    }
+    if (matches[i].size() == 0) continue;
+
+    sort(matches[i].begin(), matches[i].end(), comp);
+    Subsequence s = LIS(matches[i], i);
+    if (s.size > best.size) best = s;
   }
 
+  if (best.type == -1) return;
+
+  auto query_start = matches[best.type][best.beg].frag_pos;
+  auto target_start = matches[best.type][best.beg].ref_pos;
   // PAF
   std::cout << "Query name: \t" << fragment->name_ << "\n"
             << "Query length: \t" << fragment->data_.size() << "\n"
-            << "Query start: \t" << matches[strand][best_seq.beg].frag_pos
-            << "\n"
-            << "Query end: \t" << matches[strand][best_seq.end].frag_pos << "\n"
-            << "Relative strand: " << (strand ? '-' : '+') << "\n"
+            << "Query start: \t" << query_start << "\n"
+            << "Query end: \t" << matches[best.type][best.end].frag_pos << "\n"
+            << "Relative strand: " << (best.type ? '-' : '+') << "\n"
             << "Target name: \t" << reference->name_ << "\n"
             << "Target length: \t" << reference->data_.size() << "\n"
-            << "Target start: \t" << matches[strand][best_seq.beg].ref_pos
-            << "\n"
-            << "Target end: \t" << matches[strand][best_seq.end].ref_pos << "\n"
+            << "Target start: \t" << target_start << "\n"
+            << "Target end: \t" << matches[best.type][best.end].ref_pos << "\n"
             << std::endl;
 
   // TODO: column 10,11,12,13
@@ -353,43 +368,44 @@ int main(int argc, char* argv[]) {
   }
 
   PrintStats(fragments);
+  /*
+    // align two random sequences
+    std::cout << "Aligning two random sequences..." << std::endl;
+    std::vector<Sequence*> short_fragments;  // fragments with length < 5000
+    for (auto& ptr : fragments)
+      if (ptr->data_.size() < 5000) short_fragments.push_back(ptr.get());
 
-  // align two random sequences
-  std::cout << "Aligning two random sequences..." << std::endl;
-  std::vector<Sequence*> short_fragments;  // fragments with length < 5000
-  for (auto& ptr : fragments)
-    if (ptr->data_.size() < 5000) short_fragments.push_back(ptr.get());
+    std::vector<Sequence*> out;
+    std::sample(short_fragments.begin(), short_fragments.end(),
+                std::back_inserter(out), 2,
+    std::mt19937{std::random_device{}()});
 
-  std::vector<Sequence*> out;
-  std::sample(short_fragments.begin(), short_fragments.end(),
-              std::back_inserter(out), 2, std::mt19937{std::random_device{}()});
+    std::cout << "  Target\n"
+              << "    Name:   " << out[0]->name_ << '\n'
+              << "    Length: " << out[0]->data_.size() << '\n'
+              << "  Query\n"
+              << "    Name:   " << out[1]->name_ << '\n'
+              << "    Length: " << out[1]->data_.size() << "\n\n";
 
-  std::cout << "  Target\n"
-            << "    Name:   " << out[0]->name_ << '\n'
-            << "    Length: " << out[0]->data_.size() << '\n'
-            << "  Query\n"
-            << "    Name:   " << out[1]->name_ << '\n'
-            << "    Length: " << out[1]->data_.size() << "\n\n";
+    std::string& target = out[0]->data_;
+    std::string& query = out[1]->data_;
+    std::string cigar;
+    unsigned int target_begin;
+    int alignment_score =
+        blue::Align(query.c_str(), query.size(), target.c_str(), target.size(),
+                    static_cast<blue::AlignmentType>(algorithm), match_cost,
+                    mismatch_cost, gap_cost, &cigar, &target_begin);
 
-  std::string& target = out[0]->data_;
-  std::string& query = out[1]->data_;
-  std::string cigar;
-  unsigned int target_begin;
-  int alignment_score =
-      blue::Align(query.c_str(), query.size(), target.c_str(), target.size(),
-                  static_cast<blue::AlignmentType>(algorithm), match_cost,
-                  mismatch_cost, gap_cost, &cigar, &target_begin);
+    std::cout << "  Alignment score:    " << alignment_score << '\n'
+              << "  Target begin index: " << target_begin << "\n\n"
+              << "  CIGAR: " << cigar << "\n\n";
 
-  std::cout << "  Alignment score:    " << alignment_score << '\n'
-            << "  Target begin index: " << target_begin << "\n\n"
-            << "  CIGAR: " << cigar << "\n\n";
-
-  // MINIMIZER STATS
-  std::cout << "Reference minimizers" << std::endl;
-  MinimizerStats(reference, kmer_len, window_len, ignored_fraction);
-  std::cout << "Fragments minimizers" << std::endl;
-  MinimizerStats(fragments, kmer_len, window_len, ignored_fraction);
-
+    // MINIMIZER STATS
+    std::cout << "Reference minimizers" << std::endl;
+    MinimizerStats(reference, kmer_len, window_len, ignored_fraction);
+    std::cout << "Fragments minimizers" << std::endl;
+    MinimizerStats(fragments, kmer_len, window_len, ignored_fraction);
+  */
   // MAPPING
   std::ios_base::sync_with_stdio(false);
 
