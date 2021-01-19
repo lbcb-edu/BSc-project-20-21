@@ -23,6 +23,7 @@ static constexpr option options[] = {
     {"kmer_len", required_argument, nullptr, 'k'},
     {"window_len", required_argument, nullptr, 'w'},
     {"ignored_fraction", required_argument, nullptr, 'f'},
+    {"cigar", no_argument, nullptr, 'c'},
     {"version", no_argument, nullptr, 'v'},
     {"help", no_argument, nullptr, 'h'},
     {nullptr, 0, nullptr, 0}};
@@ -66,10 +67,12 @@ void Help() {
                "    -f, --ignored_fraction <double> in range [0,1)\n"
                "      default: 0.001\n"
                "      fraction of most frequent minimizers to be ignored\n"
+               "    -c, --cigar\n"
+               "      print CIGAR string\n"
                "    -v, --version\n"
-               "      Print version number\n"
+               "      print version number\n"
                "    -h, --help\n"
-               "      Print usage information\n";
+               "      print usage information\n";
 }
 
 void InvalidExtension(const std::string& file) {
@@ -243,13 +246,11 @@ Subsequence LIS(std::vector<Match>& matches, bool type) {
   return {beg_pos, tail.back(), tail.size(), type};
 }
 
-// TODO provjerit dal lower_bound vraca tocno za different strand?
-// TODO: pretvori LIS u template da se LIS moze vrtit nad bilo kojim objektima
-
 // maps fragment to reference, prints mapping in PAF
 void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
          std::unique_ptr<Sequence>& fragment, int8_t kmer_len,
-         int8_t window_len) {
+         int8_t window_len, blue::AlignmentType alignment_type, int match,
+         int mismatch, int gap, bool print_cigar) {
   std::vector<blue::Kmer> frag_minimizers = blue::Minimize(
       fragment->data_.c_str(), fragment->data_.size(), kmer_len, window_len);
 
@@ -276,23 +277,91 @@ void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
     if (s.size > best.size) best = s;
   }
 
-  if (best.type == -1) return;
+  int type = best.type;  // 0 - same strand, 1 - different
+  if (type == -1) return;
 
-  auto query_start = matches[best.type][best.beg].frag_pos;
-  auto target_start = matches[best.type][best.beg].ref_pos;
-  // PAF
-  std::cout << "Query name: \t" << fragment->name_ << "\n"
-            << "Query length: \t" << fragment->data_.size() << "\n"
-            << "Query start: \t" << query_start << "\n"
-            << "Query end: \t" << matches[best.type][best.end].frag_pos << "\n"
-            << "Relative strand: " << (best.type ? '-' : '+') << "\n"
-            << "Target name: \t" << reference->name_ << "\n"
-            << "Target length: \t" << reference->data_.size() << "\n"
-            << "Target start: \t" << target_start << "\n"
-            << "Target end: \t" << matches[best.type][best.end].ref_pos << "\n"
-            << std::endl;
+  // raw indexes of the region to be aligned
+  auto query_start = matches[type][best.beg].frag_pos;
+  auto target_start = matches[type][best.beg].ref_pos;
+  auto query_end = matches[type][best.end].frag_pos;
+  auto target_end = matches[type][best.end].ref_pos;
 
-  // TODO: column 10,11,12,13
+  // lengths used for alignment
+  auto query_align_len = query_end + kmer_len - query_start;
+  auto target_align_len =
+      (target_end + kmer_len - target_start) * (type ? -1 : 1);
+
+  // apply orientation to indexes
+  target_end = (type ? target_start : target_end + kmer_len);
+  target_start = (type ? target_start - target_align_len : target_start);
+  query_end += kmer_len;
+  // TODO: granice +- kmer_len ?
+
+  // clang-format off
+  std::string paf = fragment->name_ + '\t'
+    + std::to_string(fragment->data_.size()) + '\t'
+    + std::to_string(query_start) + '\t'
+    + std::to_string(query_end) + '\t'
+    + (type ? '-' : '+') + '\t'
+    + reference->name_ + '\t'
+    + std::to_string(reference->data_.size()) + '\t'
+    + std::to_string(target_start) + '\t'
+    + std::to_string(target_end) + '\t';
+  // clang-format on
+
+  auto complement = [](char base) {
+    switch (base) {
+      case 'A': return 'T';
+      case 'T': return 'A';
+      case 'C': return 'G';
+      case 'G': return 'C';
+    }
+    throw("[mapper:complement] Invalid base given as argument");
+  };
+
+  std::string cigar;
+  if (print_cigar) {
+    std::string query_rc;
+    if (type) {  // compute query reverse complement
+      for (int i = query_end; i >= query_start; i--) {
+        query_rc.push_back(complement(fragment->data_[i]));
+      }
+    }
+
+    std::cout << query_rc.size() << " " << query_align_len << " "
+              << target_align_len << std::endl;
+    unsigned _;  // not used
+    blue::Align(
+        (type ? query_rc.c_str() : fragment->data_.c_str() + query_start),
+        query_align_len, reference->data_.c_str() + target_start,
+        target_align_len, alignment_type, match, mismatch, gap, &cigar, &_);
+
+    unsigned match_count = 0;
+    unsigned total = 0;  // all operations count
+    unsigned buff = 0;
+    for (char c : cigar) {
+      if (std::isdigit(c)) {
+        buff *= 10;
+        buff += c - '0';
+      } else {
+        if (c == '=') match_count += buff;
+        total += buff;
+        buff = 0;
+      }
+    }
+
+    paf += std::to_string(match_count) + '\t' + std::to_string(total) + '\t';
+  } else {
+    // unsigned aprox10 = 0, aprox11 = 0;  // TODO aproximate columns 10 & 11
+    // paf += std::to_string(aprox10) + '\t' + std::to_string(aprox11) + '\t';
+  }
+
+  unsigned quality = 255;
+  paf += std::to_string(quality) + '\t';
+
+  if (print_cigar) paf += "cg:Z:" + cigar;
+
+  std::cout << paf << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -302,10 +371,10 @@ int main(int argc, char* argv[]) {
   int8_t algorithm = 0;
   int8_t kmer_len = 15;
   int8_t window_len = 5;
-  double ignored_fraction =
-      0.001;  // fraction of most frequent minimizers to be ignored
+  double ignored_fraction = 0.001;
+  bool print_cigar = false;
 
-  const char* opt_string = "a:m:n:g:k:w:f:hv";
+  const char* opt_string = "a:m:n:g:k:w:f:vhc";
   int opt;
   while ((opt = getopt_long(argc, argv, opt_string, options, nullptr)) != -1) {
     switch (opt) {
@@ -316,6 +385,7 @@ int main(int argc, char* argv[]) {
       case 'k': kmer_len = atoi(optarg); break;
       case 'w': window_len = atoi(optarg); break;
       case 'f': ignored_fraction = atof(optarg); break;
+      case 'c': print_cigar = true; break;
       case 'v': Version(); return 0;
       case 'h': Help(); return 0;
       default: return 1;
@@ -368,44 +438,43 @@ int main(int argc, char* argv[]) {
   }
 
   PrintStats(fragments);
-  /*
-    // align two random sequences
-    std::cout << "Aligning two random sequences..." << std::endl;
-    std::vector<Sequence*> short_fragments;  // fragments with length < 5000
-    for (auto& ptr : fragments)
-      if (ptr->data_.size() < 5000) short_fragments.push_back(ptr.get());
 
-    std::vector<Sequence*> out;
-    std::sample(short_fragments.begin(), short_fragments.end(),
-                std::back_inserter(out), 2,
-    std::mt19937{std::random_device{}()});
+  // align two random sequences
+  std::cout << "Aligning two random sequences..." << std::endl;
+  std::vector<Sequence*> short_fragments;  // fragments with length < 5000
+  for (auto& ptr : fragments)
+    if (ptr->data_.size() < 5000) short_fragments.push_back(ptr.get());
 
-    std::cout << "  Target\n"
-              << "    Name:   " << out[0]->name_ << '\n'
-              << "    Length: " << out[0]->data_.size() << '\n'
-              << "  Query\n"
-              << "    Name:   " << out[1]->name_ << '\n'
-              << "    Length: " << out[1]->data_.size() << "\n\n";
+  std::vector<Sequence*> out;
+  std::sample(short_fragments.begin(), short_fragments.end(),
+              std::back_inserter(out), 2, std::mt19937{std::random_device{}()});
 
-    std::string& target = out[0]->data_;
-    std::string& query = out[1]->data_;
-    std::string cigar;
-    unsigned int target_begin;
-    int alignment_score =
-        blue::Align(query.c_str(), query.size(), target.c_str(), target.size(),
-                    static_cast<blue::AlignmentType>(algorithm), match_cost,
-                    mismatch_cost, gap_cost, &cigar, &target_begin);
+  std::cout << "  Target\n"
+            << "    Name:   " << out[0]->name_ << '\n'
+            << "    Length: " << out[0]->data_.size() << '\n'
+            << "  Query\n"
+            << "    Name:   " << out[1]->name_ << '\n'
+            << "    Length: " << out[1]->data_.size() << "\n\n";
 
-    std::cout << "  Alignment score:    " << alignment_score << '\n'
-              << "  Target begin index: " << target_begin << "\n\n"
-              << "  CIGAR: " << cigar << "\n\n";
+  std::string& target = out[0]->data_;
+  std::string& query = out[1]->data_;
+  std::string cigar;
+  unsigned int target_begin;
+  int alignment_score =
+      blue::Align(query.c_str(), query.size(), target.c_str(), target.size(),
+                  static_cast<blue::AlignmentType>(algorithm), match_cost,
+                  mismatch_cost, gap_cost, &cigar, &target_begin);
 
-    // MINIMIZER STATS
-    std::cout << "Reference minimizers" << std::endl;
-    MinimizerStats(reference, kmer_len, window_len, ignored_fraction);
-    std::cout << "Fragments minimizers" << std::endl;
-    MinimizerStats(fragments, kmer_len, window_len, ignored_fraction);
-  */
+  std::cout << "  Alignment score:    " << alignment_score << '\n'
+            << "  Target begin index: " << target_begin << "\n\n"
+            << "  CIGAR: " << cigar << "\n\n";
+
+  // MINIMIZER STATS
+  std::cout << "Reference minimizers" << std::endl;
+  MinimizerStats(reference, kmer_len, window_len, ignored_fraction);
+  std::cout << "Fragments minimizers" << std::endl;
+  MinimizerStats(fragments, kmer_len, window_len, ignored_fraction);
+
   // MAPPING
   std::ios_base::sync_with_stdio(false);
 
@@ -414,7 +483,9 @@ int main(int argc, char* argv[]) {
         CreateMinimizerIndex(ref, kmer_len, window_len, ignored_fraction);
 
     for (auto& frag : fragments) {
-      Map(reference_index, ref, frag, kmer_len, window_len);
+      Map(reference_index, ref, frag, kmer_len, window_len,
+          static_cast<blue::AlignmentType>(algorithm), match_cost,
+          mismatch_cost, gap_cost, print_cigar);
     }
   }
   return 0;
