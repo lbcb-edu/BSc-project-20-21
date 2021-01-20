@@ -9,8 +9,7 @@
 #include <random>
 #include <unordered_map>
 
-#include "omp.h"
-
+#include "thread_pool/thread_pool.hpp"
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
 #include "blue_alignment.hpp"
@@ -487,16 +486,27 @@ int main(int argc, char* argv[]) {
   // MAPPING
   std::ios_base::sync_with_stdio(false);
 
+
+  thread_pool::ThreadPool thread_pool(num_of_threads);
+  std::vector<std::future<void>> futures;
+
+  blue::AlignmentType alignment_type = static_cast<blue::AlignmentType>(algorithm);
+
   for (auto& ref : reference) {
     MinimizerIndex reference_index =
         CreateMinimizerIndex(ref, kmer_len, window_len, ignored_fraction);
-        
-    #pragma omp parallel for num_threads(num_of_threads)
-    for (auto frag = fragments.begin(); frag < fragments.end(); frag++) {
-      Map(reference_index, ref, *frag, kmer_len, window_len,
-          static_cast<blue::AlignmentType>(algorithm), match_cost,
-          mismatch_cost, gap_cost, print_cigar);
+    
+    for (auto& frag : fragments) {
+      futures.emplace_back(thread_pool.
+                    Submit(Map,std::ref(reference_index),std::ref(ref),std::ref(frag),
+                    std::ref(kmer_len),std::ref(window_len), std::ref(alignment_type),
+                    std::ref(match_cost),std::ref(mismatch_cost),std::ref(gap_cost),std::ref(print_cigar)));
+    }
+
+    for (const auto& it : futures) {
+      it.wait();
     }
   }
+  
   return 0;
 }
