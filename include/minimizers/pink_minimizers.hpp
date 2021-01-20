@@ -135,7 +135,7 @@ vector<tuple<unsigned int, unsigned int, bool>> Minimize(
         for(int i = 0; i < (sequence_len - (window_len + kmer_len - 1) + 1); i++){
             for(int j = 0; j < (window_len + kmer_len - 1); j++){
                 orig = (orig << 2) | nucleotide_value(sequence[i+j], false);
-                revComp = (revComp << 2) | nucleotide_value(sequence[i+j], true);
+                revComp = (revComp << 2) | nucleotide_value(sequence[sequence_len - (i+j) - 1], true);
             }
             minimizers.push_back(findMinimizers(orig, revComp, sequence_len, kmer_len, window_len, i, mask));
             orig = 0;
@@ -148,7 +148,7 @@ vector<tuple<unsigned int, unsigned int, bool>> Minimize(
         while(len < (window_len + kmer_len - 1)){
             for(int i = 0; i < len; i++){
                 orig = (orig << 2) | nucleotide_value(sequence[i], false);
-                revComp = (revComp << 2) | nucleotide_value(sequence[i], true);
+                revComp = (revComp << 2) | nucleotide_value(sequence[sequence_len - i - 1], true);
             }
             minimizers.push_back(findEndMinimizers(orig, revComp, sequence_len, kmer_len, window_len, len, mask, true));
             orig = 0;
@@ -160,7 +160,7 @@ vector<tuple<unsigned int, unsigned int, bool>> Minimize(
         while(len < (window_len + kmer_len - 1)){
             for(int i = 0; i < len; i++){
                 orig = (orig << 2) | nucleotide_value(sequence[sequence_len - len + i], false);
-                revComp = (revComp << 2) | nucleotide_value(sequence[sequence_len - len + i], true);
+                revComp = (revComp << 2) | nucleotide_value(sequence[len - i - 1], true);
             }
             minimizers.push_back(findEndMinimizers(orig, revComp, sequence_len, kmer_len, window_len, len, mask, false));
             orig = 0;
