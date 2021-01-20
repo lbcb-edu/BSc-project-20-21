@@ -24,8 +24,8 @@ TEST(MinimizerTests, MinimizerTest1) {
     EXPECT_EQ(std::get<1>(minimizers[4]), 7);
     EXPECT_EQ(std::get<2>(minimizers[4]), true);
 
-    for (int i = 0; i < minimizers.size(); i++) {
+    /*for (int i = 0; i < minimizers.size(); i++) {
         std::cerr << "Value of " << i << ": " << std::get<0>(minimizers[i]) << " on position " << std::get<1>(minimizers[i]) << std::endl;
-    }
+    }*/
 
 }
