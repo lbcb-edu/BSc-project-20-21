@@ -9,11 +9,14 @@
 #include <random>
 #include <unordered_map>
 
+#include "omp.h"
+
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
 #include "blue_alignment.hpp"
 #include "blue_minimizers.hpp"
 #include "matcher.hpp"
+
 
 static constexpr option options[] = {
     {"algorithm", required_argument, nullptr, 'a'},
@@ -24,6 +27,7 @@ static constexpr option options[] = {
     {"window_len", required_argument, nullptr, 'w'},
     {"ignored_fraction", required_argument, nullptr, 'f'},
     {"cigar", no_argument, nullptr, 'c'},
+    {"threads", required_argument, nullptr, 't'},
     {"version", no_argument, nullptr, 'v'},
     {"help", no_argument, nullptr, 'h'},
     {nullptr, 0, nullptr, 0}};
@@ -69,6 +73,9 @@ void Help() {
                "      fraction of most frequent minimizers to be ignored\n"
                "    -c, --cigar\n"
                "      print CIGAR string\n"
+               "    -t, --threads\n"
+               "      default: 1\n"
+               "      number of threads\n"
                "    -v, --version\n"
                "      print version number\n"
                "    -h, --help\n"
@@ -371,10 +378,11 @@ int main(int argc, char* argv[]) {
   int8_t algorithm = 0;
   int8_t kmer_len = 15;
   int8_t window_len = 5;
+  int8_t num_of_threads = 1;
   double ignored_fraction = 0.001;
   bool print_cigar = false;
 
-  const char* opt_string = "a:m:n:g:k:w:f:vhc";
+  const char* opt_string = "a:m:n:g:k:w:f:t:vhc";
   int opt;
   while ((opt = getopt_long(argc, argv, opt_string, options, nullptr)) != -1) {
     switch (opt) {
@@ -385,6 +393,7 @@ int main(int argc, char* argv[]) {
       case 'k': kmer_len = atoi(optarg); break;
       case 'w': window_len = atoi(optarg); break;
       case 'f': ignored_fraction = atof(optarg); break;
+      case 't': num_of_threads = atof(optarg); break;
       case 'c': print_cigar = true; break;
       case 'v': Version(); return 0;
       case 'h': Help(); return 0;
@@ -481,9 +490,10 @@ int main(int argc, char* argv[]) {
   for (auto& ref : reference) {
     MinimizerIndex reference_index =
         CreateMinimizerIndex(ref, kmer_len, window_len, ignored_fraction);
-
-    for (auto& frag : fragments) {
-      Map(reference_index, ref, frag, kmer_len, window_len,
+        
+    #pragma omp parallel for num_threads(num_of_threads)
+    for (auto frag = fragments.begin(); frag < fragments.end(); frag++) {
+      Map(reference_index, ref, *frag, kmer_len, window_len,
           static_cast<blue::AlignmentType>(algorithm), match_cost,
           mismatch_cost, gap_cost, print_cigar);
     }
