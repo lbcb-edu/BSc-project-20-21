@@ -318,15 +318,13 @@ int main(int argc, char *argv[])
 	std::cerr << "Minimum: " << fragmentVector.front() << "\n\n";
 	std::cerr << "Maximum: " << fragmentVector.back() << "\n\n";
 
-	std::string cigarNotPointer;
-	std::string *cigar = &cigarNotPointer;
-	unsigned int target_beginNotPointer;
-	unsigned int *target_begin = &target_beginNotPointer;
-	int alignment_score = calcAlignment(f_size, f, cigar, target_begin);
+	std::string cigar;
+	unsigned int target_begin;
+	int alignment_score = calcAlignment(f_size, f, &cigar, &target_begin);
 
 	std::cout << "Alignment score: " << alignment_score << '\n'
-			  << "Target begin index: " << target_beginNotPointer << "\n"
-			  << "CIGAR: " << cigarNotPointer << std::endl;
+			  << "Target begin index: " << target_begin << "\n"
+			  << "CIGAR: " << cigar << std::endl;
 
 	std::unordered_map<unsigned int, unsigned int> map;
 	int singletons_count = 0;
