@@ -15,15 +15,11 @@ static int align_algorithm = 0;
 static int match_cost = 1;
 static int mismatch_cost = -1;
 static int gap_cost = -1;
-static double frequency = 0.001;
+static double ignored_fraction = 0.001;
+static bool calc_cigar = false;
 static unsigned int kmer_len = 15;
 static unsigned int window_len = 5;
-
-//gets the project version from projectControl.h
-void version_print()
-{
-	std::cout << PROJECT_VER << std::endl;
-}
+static int thread_count = 1;
 
 //basic definition of a Sequence structure
 struct Sequence
@@ -108,14 +104,42 @@ int calculateN50(std::vector<size_t> fragmentVector, int sum)
 //prints the standard help message
 void help_print()
 {
-	std::cout << "\n" PROJECT_NAME " usage:\n"
-				 "Two options :\n"
-				 "-h or --help\t Prints help message\n"
-				 "-v or --version\t Prints version\n\n"
-				 "Mapper accepts two files arguments.\n"
-				 "The first file  FASTA format.\n"
-				 "The second file  FASTA or FASTQ format.\n\n"
-				 "Mapper shows these statistics :\n"
+	std::cout << "\n" PROJECT_NAME " usage: white_mapper [options] <reference-genome> <fragments>\n\n"
+				 "\t<reference-genome>\n\t reference genome in FASTA format\n"
+				 "\t<fragments>\n\t set of fragments in FASTA or FASTQ format\n\n"
+				 "	options:\n"
+				 "		-h, --help\t Prints help message\n"
+				 "		-v, --version\t Prints version\n"
+				 "	---------------------------------------"
+				 "		-a, --algorithm <int>\n"
+				 "			alignment algorithm:\n"
+				 "			 0 - LOCAL/Smith-Waterman (default)\n"
+				 "			 1 - GLOBAL/Needleman-Wunsch\n"
+				 "			 2 - SEMI-GLOBAL\n"
+				 "		-m, --match_cost <int>\n"
+				 "			sets match cost during alignment\n"
+				 "			default: 1\n"
+				 "		-n, --mismatch_cost <int>\n"
+				 "			sets mismatch cost during alignment\n"
+				 "			default: -1\n"
+				 "		-g, --gap_cost <int>\n"
+				 "			sets linear gap cost during alignment\n"
+				 " 			default: -1\n"
+				 "		-k, --kmer_len <int>\n"
+				 "			sets kmer length for minimizers\n"
+				 "			default: 15\n"
+				 "		-w, --window_len <int>\n"
+				 "			sets window length for minimizers\n"
+				 "			default: 5\n"
+				 "		-f, --ingored_fraction <double> in range [0, 1)\n"
+				 "			sets the percentage of top minimizers to ignore\n"
+				 "			default: 0.001 (0.1%)\n"
+				 "		-c, --cigar\n"
+				 "			mapper calculates and prints CIGAR string\n"
+				 "		-t, --thread <int>\n"
+				 "			sets the number of threads\n"
+				 "			default: 1"
+				 "Mapper shows following statistics :\n"
 				 "names of sequences in the reference file and their lengths,\n"
 				 "number of sequences in the fragments file,\n"
 				 "their average length,\n"
@@ -123,6 +147,11 @@ void help_print()
 				 "minimal and maximal length.\n\n";
 }
 
+//gets the project version from projectControl.h
+void version_print()
+{
+	std::cout << PROJECT_VER << std::endl;
+}
 int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragment_list, std::string *cigar, unsigned int *target_begin)
 {
 	srand(time(NULL));
@@ -172,9 +201,11 @@ int main(int argc, char *argv[])
 		{"match_cost", required_argument, nullptr, 'm'},
 		{"mismatch_cost", required_argument, nullptr, 'n'},
 		{"gap_cost", required_argument, nullptr, 'g'},
-		{"frequency", required_argument, nullptr, 'f'},
+		{"ignored_fraction", required_argument, nullptr, 'f'},
 		{"kmer_len", required_argument, nullptr, 'k'},
 		{"window_len", required_argument, nullptr, 'w'},
+		{"cigar", required_argument, nullptr, 'c'},
+		{"thread", required_argument, nullptr, 't'},
 		{0, 0, 0, 0}};
 
 	while ((opt = getopt_long(argc, argv, "a:m:n:g:k:f:w:hv:", long_options, nullptr)) != -1)
@@ -213,7 +244,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'f':
-			frequency = atof(optarg);
+			ignored_fraction = atof(optarg);
 			break;
 
 		case 'k':
@@ -222,6 +253,14 @@ int main(int argc, char *argv[])
 
 		case 'w':
 			window_len = atoi(optarg);
+			break;
+
+		case 'c':
+			calc_cigar = true;
+			break;
+
+		case 't':
+			thread_count = atoi(optarg);
 			break;
 
 		default:
@@ -311,9 +350,9 @@ int main(int argc, char *argv[])
 			minimizers_map[std::get<0>(minimizer)]++;
 		}
 	}
-	/*
-	std::vector<unsigned int> minimizer_sorted(map.size());
-	for (auto& minimizer : map) {
+	
+	std::vector<unsigned int> minimizer_sorted(minimizers_map.size());
+	for (auto& minimizer : minimizers_map) {
 		if (minimizer.second == 1) {
 			singletons_count++;
 		}
@@ -322,10 +361,10 @@ int main(int argc, char *argv[])
 
 	std::sort(minimizer_sorted.begin(), minimizer_sorted.end(), std::greater<>());
 	
-	std::cout << "Number of distinct minimizers: " << map.size() << std::endl;
-	std::cout << "Fraction of singletons: " << (double) singletons_count / map.size() << std::endl;
+	std::cout << "Number of distinct minimizers: " << minimizers_map.size() << std::endl;
+	std::cout << "Fraction of singletons: " << (double) singletons_count / minimizers_map.size() << std::endl;
 	std::cout << "Number of occurrences of the most frequent minimizer with top " <<
-		frequency * 100	<< "% most frequent ignored: " << minimizer_sorted[std::ceil(map.size() * frequency)] << std::endl;*/
+		ignored_fraction * 100	<< "% most frequent ignored: " << minimizer_sorted[std::ceil(minimizers_map.size() * ignored_fraction)] << std::endl;
 
 	return 0;
 }
