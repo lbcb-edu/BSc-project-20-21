@@ -5,21 +5,6 @@
 #include <tuple>
 
 namespace white {
-
- /**
-     * @brief komplementira danu sekvencu
-     * 
-     * @param sequence sekvenca koju zelimo komplementirati
-     * @param sequence_len duljina predane sekvence
-     * @return komplement predane sekvence
-     */
-    const char* complementSeq(const char* sequence, unsigned int sequence_len);
-
-    
-    unsigned int mapLetter(char letter);
-
-    unsigned int Complement(unsigned int base);
-
     /**
      * @brief 
      * 
