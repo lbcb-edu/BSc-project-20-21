@@ -325,6 +325,10 @@ int white::Aligner::Align(AlignmentType type)
     case SEMIGLOBAL:
         return SemiGlobal();
     default:
-        return -1;
+        throw std::invalid_argument("error: invalid alignment type\n"
+            "alignment algorithms:\n"
+            " 0 - LOCAL/Smith-Waterman (default)\n"
+            " 1 - GLOBAL/Needleman-Wunsch\n"
+            " 2 - SEMI-GLOBAL\n)");
     }
 }

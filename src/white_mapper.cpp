@@ -8,7 +8,6 @@
 
 #include "white_alignment.hpp"
 
-
 static int version_req;
 static int help_req;
 static int align_algorithm = 0;
@@ -26,11 +25,10 @@ struct Sequence
 {
 public:
 	Sequence(
-		const char* name, std::uint32_t nameLength,
-		const char* data, std::uint32_t dataLength,
-		const char* quality = nullptr, std::uint32_t qualityLength = 0):
-		name(name, nameLength),
-		data(data, dataLength) {}
+		const char *name, std::uint32_t nameLength,
+		const char *data, std::uint32_t dataLength,
+		const char *quality = nullptr, std::uint32_t qualityLength = 0) : name(name, nameLength),
+																		  data(data, dataLength) {}
 
 	std::string getName()
 	{
@@ -157,7 +155,8 @@ int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragme
 	srand(time(NULL));
 	int query_index;
 	int target_index;
-	white::AlignmentType align_type;;
+	white::AlignmentType align_type;
+	;
 	do
 	{
 		query_index = rand() % (size);
@@ -281,16 +280,19 @@ int main(int argc, char *argv[])
 	}
 
 	//if the input wasn't help or version flag, then it checks if we have given two arguments
-	if (argc != 3) {
+	if (argc != 3)
+	{
 		std::cerr << "error: invalid input, please include exactly two files\n";
-	 	return 1;
+		return 1;
 	}
 
 	//if the given two arguments aren't in valid formats, the program recieves an error
-	if (!checkArgs(argv)) {
+	if (!checkArgs(argv))
+	{
 		std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order\n";
-	 	return 1;
+		return 1;
 	}
+	
 	//parsing the first file
 	auto ref = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[argc - 2]);
 	auto reference = ref->Parse(-1);
@@ -302,13 +304,13 @@ int main(int argc, char *argv[])
 	int fragments_size = (int)fragments.size();
 
 	//names of sequences in the reference file and their lengths
-	 for (int i = 0; i < reference_size; i++) {
-		std::cerr << "Name of sequence: " << reference[i]->getName() << "\n" 
-			<< "Length of sequence: " << reference[i]->getData().size() << "\n\n";
-	} 
+	for (int i = 0; i < reference_size; i++)
+	{
+		std::cerr << "Name of sequence: " << reference[i]->getName() << "\n"
+				  << "Length of sequence: " << reference[i]->getData().size() << "\n\n";
+	}
 
 	//number of sequences in the fragments file
-	
 	int sum = 0;
 	for (int i = 0; i < fragments_size; i++)
 	{
@@ -328,8 +330,8 @@ int main(int argc, char *argv[])
 	std::cerr << "Number of sequences: " << fragments_size << "\n";
 	std::cerr << "Total length of all fragments: " << sum << "\n";
 	std::cerr << "Minimum length: " << fragmentVector.front() << "\n";
-	std::cerr << "Maximum length: " << fragmentVector.back() << "\n";	
-	std::cerr << "Average length of fragments: " << avg_size << "\n";	
+	std::cerr << "Maximum length: " << fragmentVector.back() << "\n";
+	std::cerr << "Average length of fragments: " << avg_size << "\n";
 	std::cerr << "N50 length: " << fragmentVector[N50] << "\n\n";
 
 	std::string cigar;
@@ -337,34 +339,42 @@ int main(int argc, char *argv[])
 	int alignment_score = calcAlignment(fragments_size, fragments, &cigar, &target_begin);
 	std::cout << "Alignment score: " << alignment_score << std::endl;
 	std::cout << "Target begin index: " << target_begin << std::endl;
-	std::cout << "Cigar: " << cigar << std::endl;
+	if (calc_cigar)
+		std::cout << "Cigar: " << cigar << std::endl;
 
 	std::unordered_map<unsigned int, unsigned int> minimizers_map;
 	int singletons_count = 0;
-	for (auto& seq : reference) {
-		std::cout <<"test" << "\n\n";
-		auto minimizer_vector = 
+	for (auto &seq : reference)
+	{
+		std::cout << "test"
+				  << "\n\n";
+		auto minimizer_vector =
 			white::Minimize(seq->getData().c_str(), seq->getData().size(), kmer_len, window_len);
-		
-		for (auto& minimizer : minimizer_vector) {
+
+		for (auto &minimizer : minimizer_vector)
+		{
 			minimizers_map[std::get<0>(minimizer)]++;
 		}
 	}
-	
+
 	std::vector<unsigned int> minimizer_sorted(minimizers_map.size());
-	for (auto& minimizer : minimizers_map) {
-		if (minimizer.second == 1) {
+	for (auto &minimizer : minimizers_map)
+	{
+		if (minimizer.second == 1)
+		{
 			singletons_count++;
 		}
 		minimizer_sorted.push_back(minimizer.second);
 	}
 
 	std::sort(minimizer_sorted.begin(), minimizer_sorted.end(), std::greater<>());
-	
+
 	std::cout << "Number of distinct minimizers: " << minimizers_map.size() << std::endl;
-	std::cout << "Fraction of singletons: " << (double) singletons_count / minimizers_map.size() << std::endl;
-	std::cout << "Number of occurrences of the most frequent minimizer with top " <<
-		ignored_fraction * 100	<< "% most frequent ignored: " << minimizer_sorted[std::ceil(minimizers_map.size() * ignored_fraction)] << std::endl;
+	std::cout << "Fraction of singletons: " << (double)singletons_count / minimizers_map.size() << std::endl;
+	std::cout << "Number of occurrences of the most frequent minimizer with top " 
+		<< ignored_fraction * 100 << "% most frequent ignored: " 
+		<< minimizer_sorted[std::ceil(minimizers_map.size() * ignored_fraction)] 
+		<< std::endl;
 
 	return 0;
 }
