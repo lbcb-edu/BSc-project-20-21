@@ -3,9 +3,8 @@
 #include <string>
 #include <tuple>
 #include "white_minimizers.hpp"
-using namespace white;
 
-    const char* complementSeq(const char* sequence, unsigned int sequence_len) {
+    const char* white::complementSeq(const char* sequence, unsigned int sequence_len) {
         //A -> T
         //T -> A
         //G -> C
@@ -30,7 +29,7 @@ using namespace white;
         return compSeq;
     }
 
-    std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
+    std::vector<std::tuple<unsigned int, unsigned int, bool>> white::Minimize(
     const char* sequence, uint32_t sequence_len,
     unsigned int kmer_len, //u windowu gleda po k slova
     unsigned int window_len //duljina prozora u kojem gleda po k slova

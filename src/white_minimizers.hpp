@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -12,8 +13,7 @@ namespace white {
      * @param sequence_len duljina predane sekvence
      * @return komplement predane sekvence
      */
-    const char* complementSeq(const char* sequence, unsigned int sequence_len) {
-    }
+    const char* complementSeq(const char* sequence, unsigned int sequence_len);
 
     /**
      * @brief 
@@ -28,7 +28,6 @@ namespace white {
     const char* sequence, uint32_t sequence_len,
     unsigned int kmer_len, //u windowu gleda po k slova
     unsigned int window_len //duljina prozora u kojem gleda po k slova
-    ) {
-    }
+    );
   
 }

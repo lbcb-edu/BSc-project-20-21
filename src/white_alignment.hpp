@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <math.h>
 #include <vector>
@@ -15,6 +16,7 @@ namespace white {
         Operation operation;
         int value;
     };
+    
     class Aligner {
 
         public:
@@ -51,24 +53,21 @@ namespace white {
          * 
          * @return ukupan trosak poravnanja, ovisno o parametrima zadanim u Aligneru
          */
-        int NeedlemanWunsch() {
-        }
+        int NeedlemanWunsch();
 
         /**
          * @brief Smith-Waterman metoda poravnanja
          * 
          * @return ukupan trosak poravnanja, ovisno o parametrima zadanim u Aligneru
          */
-        int SmithWaterman() {
-        }  
+        int SmithWaterman();
 
         /**
          * @brief Semi-globalna metoda poravnanja
          * 
          * @return ukupan trosak poravnanja, ovisno o parametrima zadanim u Aligneru 
          */
-        int SemiGlobal() {
-        }
+        int SemiGlobal();
 
         /**
          * @brief funkcija koja gradi string u CIGAR formatu
@@ -78,8 +77,7 @@ namespace white {
          * @param starting_cigar string nad kojim funkcija nastavlja gradnju
          * @return string u CIGAR formatu
          */
-        std::string CigarBuilder(int& row, int& col, std::string starting_cigar) {
-        }
+        std::string CigarBuilder(int& row, int& col, std::string starting_cigar);
 
         /**
          * @brief 
@@ -87,8 +85,7 @@ namespace white {
          * @param row 
          * @param col 
          */
-        void ClippedCigarBuilder(int row, int col) {
-        }
+        void ClippedCigarBuilder(int row, int col);
 
         /**
          * @brief funkcija koja odabire metodu poravnanja
@@ -96,9 +93,6 @@ namespace white {
          * @param type tip poravnanja koji koristimo
          * @return ukupan trosak poravnanja
          */
-        int Align(AlignmentType type) {
-        }
+        int Align(AlignmentType type);
     };   
 }
-
-

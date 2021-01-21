@@ -4,8 +4,10 @@
 #include "projectControl.h"
 #include "../bioparser/include/bioparser/fasta_parser.hpp"
 #include "../bioparser/include/bioparser/fastq_parser.hpp"
-#include "white_alignment.h"
 #include "white_minimizers.hpp"
+
+#include "white_alignment.hpp"
+
 
 static int version_req;
 static int help_req;

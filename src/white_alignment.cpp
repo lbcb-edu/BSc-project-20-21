@@ -3,9 +3,8 @@
 #include <vector>
 #include <limits>
 #include "white_alignment.hpp"
-using namespace white;
 
-Aligner::Aligner(const char *query, unsigned int query_len, const char *target,
+white::Aligner::Aligner(const char *query, unsigned int query_len, const char *target,
                  unsigned int target_len, int match, int mismatch, int gap,
                  std::string *cigar, unsigned int *target_begin)
     : query(query),
@@ -18,9 +17,9 @@ Aligner::Aligner(const char *query, unsigned int query_len, const char *target,
       cigar(cigar),
       target_begin(target_begin),
       Mat(query_len + 1,
-          std::vector<Cell>(target_len + 1, {Operation::kNone, 0})) {}
+          std::vector<white::Cell>(target_len + 1, {white::Operation::kNone, 0})) {}
 
-int Aligner::NeedlemanWunsch()
+int white::Aligner::NeedlemanWunsch()
 {
     //std::cout << "checkNeedle1\n";
     for (int i = 1; i < query_len + 1; i++)
@@ -88,7 +87,7 @@ int Aligner::NeedlemanWunsch()
     return Mat[query_len][target_len].value;
 }
 
-int Aligner::SmithWaterman()
+int white::Aligner::SmithWaterman()
 {
     for (int i = 1; i < query_len + 1; i++)
     {
@@ -160,7 +159,7 @@ int Aligner::SmithWaterman()
     return maxVal;
 }
 
-int Aligner::SemiGlobal()
+int white::Aligner::SemiGlobal()
 {
 
     for (int i = 1; i < query_len + 1; i++)
@@ -239,7 +238,7 @@ int Aligner::SemiGlobal()
     return maxVal;
 }
 
-std::string Aligner::CigarBuilder(int &row, int &col, std::string starting_cigar)
+std::string white::Aligner::CigarBuilder(int &row, int &col, std::string starting_cigar)
 {
     //std::cout << "checkCigarBuilder1\n";
     while (Mat[row][col].operation != kNone)
@@ -297,7 +296,7 @@ std::string Aligner::CigarBuilder(int &row, int &col, std::string starting_cigar
     return final_cigar;
 }
 
-void Aligner::ClippedCigarBuilder(int row, int col)
+void white::Aligner::ClippedCigarBuilder(int row, int col)
 {
     std::string starting_cigar = "";
     for (int i = row + 1; i < query_len; i++)
@@ -314,7 +313,7 @@ void Aligner::ClippedCigarBuilder(int row, int col)
     *cigar = final_cigar;
 }
 
-int Aligner::Align(AlignmentType type)
+int white::Aligner::Align(AlignmentType type)
 {
 
     switch (type)
