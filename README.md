@@ -92,6 +92,12 @@ where the return value is the list of found minimizers (first `unsigned int` of 
 
 Once the library is finished, it has to be used to find minimizers of all sequences in the first input file, and then in the second. The mapper has to print the number of distinct minimizers, fraction of singletons, and the number of occurrences of the most frequent minimizer when the top `f` frequent minimizers are **not** taken in account (add optional arguments for setting `k`, `w` and `f` to the mapper). Default values for `(k, w, f)` should be `(15, 5, 0.001)`.
 
+## Mapper
+
+The final step is to align each of the inputed fragments to the given reference genome, with the help of the alignment and the minimizer libraries. First, it is necessary to create a minimizer index from the reference genome, which will store all positions and origins for each distinct minimizer found in the reference (too frequent minimizers should be ignored, controlled by parameter `f`). Next, all minimizers of a fragment are to be searched against the reference index to find matches. From the list of all matches for a pair of `(fragment, reference)`, the longest linear chain should represent the best candidate for a good alignment between the pair. That region can be obtained in quasilinear time by solving the longest increasing subsequence problem on the list of minimizer matches. Afterwards, the alignment procedure can be invoked only on the found regions (`[q_begin, q_end]` and `[t_begin, t_end]`).
+
+The mapper should print the found regions in [PAF](https://github.com/lh3/miniasm/blob/master/PAF.md) format to stdout. The CIGAR strings of the alignment should be included only if argument `c` is used at runtime. They ought to be stored in the 13th collumn in format `cg:Z:<CIGAR>`. In addition, the mapper should be parallelized with optional number of threads (determined over argument `t`). Parallelization can be done via [OpenMP](https://www.openmp.org/) or [thread_pool](https://github.com/rvaser/thread_pool).
+
 ## Disclaimer
 
 Laboratory for Bioinformatics and Computational Biology cannot be held responsible for any copyright infringement caused by actions of students contributing to any of its repositories. Any case of copyright infringement will be promptly removed from the affected repositories and reported to appropriate faculty organs.
