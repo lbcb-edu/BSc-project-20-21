@@ -29,26 +29,3 @@ if (NOT TARGET thread_pool)
 endif ()
 
 target_link_libraries(blue_mapper PUBLIC blue_minimizers blue_alignment bioparser thread_pool)
-
-
-option(blue_alignment_build_tests "Build unit tests for blue alignment" ON)
-if (blue_alignment_build_tests)
-  enable_testing()
-  find_package(GTest REQUIRED)
-  add_executable(${PROJECT_NAME}_alignment_test
-    test/blue_alignment_test.cpp
-  )
-  target_link_libraries(${PROJECT_NAME}_alignment_test PUBLIC blue_alignment GTest::Main)
-  
-endif()
-
-option(blue_minimizers_build_tests "Build unit tests for blue minimizers" ON)
-if (blue_minimizers_build_tests)
-  enable_testing()
-  find_package(GTest REQUIRED)
-  add_executable(${PROJECT_NAME}_minimizers_test
-    test/blue_minimizers_test.cpp
-  )
-  target_link_libraries(${PROJECT_NAME}_minimizers_test PUBLIC blue_minimizers GTest::Main)
-  
-endif()
