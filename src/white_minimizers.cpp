@@ -4,6 +4,21 @@
 #include <tuple>
 #include "white_minimizers.hpp"
 
+
+    unsigned int white::mapLetter(char letter) {
+        switch(letter) {
+            case 'C': return 0;
+            case 'A': return 1;
+            case 'T': return 2;
+            case 'G': return 3;
+            default: return -1;
+        }
+    }
+
+    unsigned int white::Complement(unsigned int base) {
+        return 3;
+    }
+
     const char* white::complementSeq(const char* sequence, unsigned int sequence_len) {
         //A -> T
         //T -> A
