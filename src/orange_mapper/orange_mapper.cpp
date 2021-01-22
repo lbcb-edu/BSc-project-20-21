@@ -5,7 +5,6 @@
 #include <time.h>
 #include <string.h>
 
-
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
 #include "orange_alignment/orange_alignment.h"
@@ -74,9 +73,9 @@ int calculate_score(int algorithm, int gap, int match, int mismatch, const vecto
 			break;
 		}
 	}
-	char* query = strcpy(query, fragments[index1]->datas.c_str());
+	char query[] = strcpy(query, fragments[index1]->datas.c_str());
 	int query_len = fragments[index1]->datas.length();
-	char* target = strcpy(query, fragments[index2]->datas.c_str());
+	char target[] = strcpy(query, fragments[index2]->datas.c_str());
 	int target_len = fragments[index2]->datas.length();
 	orange::AlignmentType type;
 	if(algorithm == 0){
@@ -87,8 +86,8 @@ int calculate_score(int algorithm, int gap, int match, int mismatch, const vecto
 	else if(algorithm == 2){
 		type = orange::AlignmentType::semiGlobal;
 	}
-	orange::Alignment classAlign (query, query_len, target, target_len, type, match, mismatch, gap, &cigar, &target_begin);
-	return classAlign.Align(query, query_len, target, target_len, type, match, mismatch, gap, &cigar, &target_begin); 
+    orange::Alignment* a = new orange::Alignment(query, sizeof(query), target, sizeof(target), type, match, mismatch, gap, cigar, target_begin);
+    return a->Align(query, query_len, target, target_len, type, match, mismatch, gap, &cigar, &target_begin);
 }
 
 int main(int argc, char *argv[]){
