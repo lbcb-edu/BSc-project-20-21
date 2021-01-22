@@ -367,7 +367,7 @@ int main(int argc, char *argv[])
 		minimizer_sorted.push_back(minimizer.second);
 	}
 
-	std::sort(minimizer_sorted.begin(), minimizer_sorted.end(), std::greater<>());
+	std::sort(minimizer_sorted.begin(), minimizer_sorted.end(), std::greater<unsigned int>());
 
 	std::cout << "Number of distinct minimizers: " << minimizers_map.size() << std::endl;
 	std::cout << "Fraction of singletons: " << (double)singletons_count / minimizers_map.size() << std::endl;
