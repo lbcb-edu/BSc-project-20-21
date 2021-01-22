@@ -1,11 +1,14 @@
 #include <iostream>
 #include <getopt.h>
 #include <unordered_map>
+
 #include "projectControl.h"
+
 #include "../bioparser/include/bioparser/fasta_parser.hpp"
 #include "../bioparser/include/bioparser/fastq_parser.hpp"
-#include "white_minimizers.hpp"
+#include "../thread_pool/include/thread_pool/thread_pool.hpp"
 
+#include "white_minimizers.hpp"
 #include "white_alignment.hpp"
 
 static int version_req;
@@ -19,6 +22,7 @@ static bool calc_cigar = false;
 static unsigned int kmer_len = 15;
 static unsigned int window_len = 5;
 static int thread_count = 1;
+static std::string separator = "----------------------------------------\n";
 
 //basic definition of a Sequence structure
 struct Sequence
@@ -50,7 +54,7 @@ private:
 bool checkArgs(char *argv[], int argc)
 {
 	const char *extension_fasta[5] = {".fasta", ".fna", ".ffn", ".faa", ".frn"};
-	char *p = strrchr(argv[argc-2], '.');
+	char *p = strrchr(argv[argc - 2], '.');
 	int found = 0;
 	if (p)
 	{
@@ -70,7 +74,7 @@ bool checkArgs(char *argv[], int argc)
 	}
 
 	const char *extension_fastq[7] = {".fasta", ".fna", ".ffn", ".faa", ".frn", ".fastq", ".fq"};
-	p = strrchr(argv[argc-1], '.');
+	p = strrchr(argv[argc - 1], '.');
 	if (p)
 	{
 		for (int i = 0; i < 7; i++)
@@ -107,8 +111,8 @@ void help_print()
 				 "\t<fragments>\n\t set of fragments in FASTA or FASTQ format\n\n"
 				 "	options:\n"
 				 "		-h, --help\t Prints help message\n"
-				 "		-v, --version\t Prints version\n"
-				 "	---------------------------------------\n"
+				 "		-v, --version\t Prints version\n		"
+				 << separator <<
 				 "		-a, --algorithm <int>\n"
 				 "			alignment algorithm:\n"
 				 "			 0 - LOCAL/Smith-Waterman (default)\n"
@@ -142,7 +146,8 @@ void help_print()
 				 "number of sequences in the fragments file,\n"
 				 "their average length,\n"
 				 "N50 length,\n"
-				 "minimal and maximal length.\n\n";
+				 "minimal and maximal length.\n\n"
+				 << separator;
 }
 
 //gets the project version from projectControl.h
@@ -151,7 +156,8 @@ void version_print()
 	std::cout << PROJECT_VER << std::endl;
 }
 
-int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragment_list, std::string *cigar, unsigned int *target_begin)
+int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragment_list,
+				  std::string *cigar, unsigned int *target_begin)
 {
 	srand(time(NULL));
 	int query_index;
@@ -188,6 +194,59 @@ int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragme
 	int align_score = aligner->Align(align_type);
 	return align_score;
 };
+
+void createMinimizerIndex(const std::unique_ptr<Sequence> &seq,
+						  std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> &index)
+{
+	auto minimizers_vector =
+		white::Minimize(seq->getData().c_str(), seq->getData().size(), kmer_len, window_len);
+
+	for (auto min : minimizers_vector)
+	{
+		index[std::get<0>(min)]
+			.emplace_back(std::make_pair(std::get<1>(min), std::get<2>(min)));
+	}
+}
+
+void createReferenceIndex(const std::unique_ptr<Sequence> &seq,
+						  std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> &index)
+{
+	std::cerr << "Creating minimizer index for reference genome... ";
+	createMinimizerIndex(seq, index);
+
+	std::vector<std::pair<unsigned int, unsigned int>> distinct_minimizer_occurances;
+	distinct_minimizer_occurances.reserve(index.size());
+
+	int singleton_count = 0;
+	for (auto &min : index)
+	{
+		if (min.second.size() == 1)
+			singleton_count++;
+		distinct_minimizer_occurances.emplace_back(std::make_pair(min.second.size(), min.first));
+	}
+
+	//sort minimizers by occurance descending
+	sort(distinct_minimizer_occurances.begin(), distinct_minimizer_occurances.end(),
+		 std::greater<std::pair<unsigned int, unsigned int>>());
+
+	std::cerr << "Done!\n\n";
+
+	int ignore_top_minimizers = std::ceil(index.size() * ignored_fraction);
+	if (ignore_top_minimizers >= index.size())
+		ignore_top_minimizers = index.size() - 1;
+	std::cerr << "Reference index information:\n";
+	std::cerr << "	Number of distinct minimizers: " << index.size() << std::endl;
+	std::cerr << "	Fraction of singletons: " << (double)singleton_count / index.size() << std::endl;
+	std::cerr << "	Number of occurrences of the most frequent minimizer with top "
+			  << ignored_fraction * 100 << "% most frequent ignored: "
+			  << distinct_minimizer_occurances[ignore_top_minimizers].first
+			  << std::endl;
+	
+	//remove most frequently occuring minimizers from index
+	for (int i = 0; i < ignore_top_minimizers; i++) {
+		index.erase(distinct_minimizer_occurances[i].second);
+	}
+}
 
 int main(int argc, char *argv[])
 {
@@ -293,7 +352,7 @@ int main(int argc, char *argv[])
 		std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order\n";
 		return 1;
 	}
-	
+
 	//parsing the first file
 	auto ref = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[argc - 2]);
 	auto reference = ref->Parse(-1);
@@ -307,8 +366,9 @@ int main(int argc, char *argv[])
 	//names of sequences in the reference file and their lengths
 	for (int i = 0; i < reference_size; i++)
 	{
-		std::cerr << "Name of sequence: " << reference[i]->getName() << "\n"
-				  << "Length of sequence: " << reference[i]->getData().size() << "\n\n";
+		std::cerr << "\nReference genome information:\n" 
+				<< "	Name of sequence: " << reference[i]->getName() << "\n"
+				<< "	Length of sequence: " << reference[i]->getData().size() << "\n\n";
 	}
 
 	//number of sequences in the fragments file
@@ -328,13 +388,15 @@ int main(int argc, char *argv[])
 
 	int N50 = calculateN50(fragmentVector, sum);
 
-	std::cerr << "Number of sequences: " << fragments_size << "\n";
-	std::cerr << "Total length of all fragments: " << sum << "\n";
-	std::cerr << "Minimum length: " << fragmentVector.front() << "\n";
-	std::cerr << "Maximum length: " << fragmentVector.back() << "\n";
-	std::cerr << "Average length of fragments: " << avg_size << "\n";
-	std::cerr << "N50 length: " << fragmentVector[N50] << "\n\n";
+	std::cerr << "Fragment information:\n";
+	std::cerr << "	Number of sequences: " << fragments_size << "\n";
+	std::cerr << "	Total length of all fragments: " << sum << "\n";
+	std::cerr << "	Minimum length: " << fragmentVector.front() << "\n";
+	std::cerr << "	Maximum length: " << fragmentVector.back() << "\n";
+	std::cerr << "	Average length of fragments: " << avg_size << "\n";
+	std::cerr << "	N50 length: " << fragmentVector[N50] << "\n" << separator;
 
+	//ALIGNMENT
 	std::string cigar;
 	unsigned int target_begin;
 	std::cout << "Aligning two random sequences...\n\n";
@@ -344,38 +406,36 @@ int main(int argc, char *argv[])
 	if (calc_cigar)
 		std::cout << "Cigar: " << cigar << std::endl;
 
-	std::unordered_map<unsigned int, unsigned int> minimizers_map;
-	int singletons_count = 0;
-	for (auto &seq : reference)
-	{
-		auto minimizer_vector =
-			white::Minimize(seq->getData().c_str(), seq->getData().size(), kmer_len, window_len);
-
-		for (auto &minimizer : minimizer_vector)
-		{
-			minimizers_map[std::get<0>(minimizer)]++;
-		}
-	}
-
-	std::vector<unsigned int> minimizer_sorted(minimizers_map.size());
-	for (auto &minimizer : minimizers_map)
-	{
-		if (minimizer.second == 1)
-		{
-			singletons_count++;
-		}
-		minimizer_sorted.push_back(minimizer.second);
-	}
-
-	std::sort(minimizer_sorted.begin(), minimizer_sorted.end(), std::greater<unsigned int>());
-
-	std::cout << "Number of distinct minimizers: " << minimizers_map.size() << std::endl;
-	std::cout << "Fraction of singletons: " << (double)singletons_count / minimizers_map.size() << std::endl;
-	std::cout << "Number of occurrences of the most frequent minimizer with top " 
-		<< ignored_fraction * 100 << "% most frequent ignored: " 
-		<< minimizer_sorted[std::ceil(minimizers_map.size() * ignored_fraction)] 
-		<< std::endl;
-
+	//MINIMIZERS
+	std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> reference_index;
+	createReferenceIndex(reference[0], reference_index);
 	std::ios_base::sync_with_stdio(false);
+
+
+	int fragments_in_thread = ceil(fragments_size / thread_count);
+	int frag_begin = 0;
+	thread_pool::ThreadPool thread_pool{};
+	std::vector<std::future<std::string>> futures;
+
+	for (int i = 0; i < (thread_count - 1);  i++) {
+		futures.emplace_back(
+			thread_pool.Submit(mapFragmentsToReference,
+				std::ref(fragments),
+				std::ref(reference[0]),
+			   	std::ref(reference_index),
+				frag_begin, frag_begin + fragments_in_thread));
+        frag_begin += fragments_in_thread;
+	}
+	futures.emplace_back(
+			thread_pool.Submit(mapFragmentsToReference,
+				std::ref(fragments),
+				std::ref(reference[0]),
+			   	std::ref(reference_index),
+				frag_begin, frag_begin + fragments_in_thread));
+
+	for (auto& fut : futures) {
+		std::string s = fut.get();
+		std::cout << s;
+	}
 	return 0;
 }
