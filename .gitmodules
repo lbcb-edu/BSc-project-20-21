@@ -1,3 +1,6 @@
 [submodule "bioparser"]
 	path = bioparser
 	url = https://github.com/rvaser/bioparser.git
+[submodule "thread_pool"]
+	path = thread_pool
+	url = https://github.com/rvaser/thread_pool.git

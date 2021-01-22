@@ -259,6 +259,7 @@ std::string mapToReference(const std::vector<std::unique_ptr<Sequence>> &fragmen
 						   std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> &reference_index,
 						   int fragments_begin, int fragments_end)
 {
+	return "";
 }
 
 int main(int argc, char *argv[])

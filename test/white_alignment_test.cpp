@@ -1,4 +1,4 @@
-#include "white_alignment.h"
+#include "../src/white_alignment.hpp"
 #include <gtest/gtest.h>
 
 TEST(WhiteAlignmentTests, Global) {
