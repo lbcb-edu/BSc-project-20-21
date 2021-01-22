@@ -197,13 +197,15 @@ int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragme
 void createMinimizerIndex(const std::unique_ptr<Sequence> &seq,
 						  std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> &index)
 {
-	//const char* seq_test = "TACGTACCGTA";
-	auto minimizers_vector = //white::Minimize(seq_test, 11, kmer_len, window_len);
+	const char* seq_test = "CGTTAC";
+	auto minimizers_vector = //white::Minimize(seq_test, 7, kmer_len, window_len);
 		white::Minimize(seq->getData().c_str(), seq->getData().size(), kmer_len, window_len);
-	for (auto& vec : minimizers_vector) {
+		
+	for (auto &vec : minimizers_vector)
+	{
 		std::cout << std::get<0>(vec) << ", " << std::get<1>(vec) << ", " << (std::get<2>(vec) ? "1" : "0") << "\n";
 	}
-	
+
 	for (auto min : minimizers_vector)
 	{
 		index[std::get<0>(min)]
