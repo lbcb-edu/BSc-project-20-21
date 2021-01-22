@@ -50,7 +50,7 @@ private:
         return 3 - base;
     }
 
-    bool compareKmers(std::tuple<unsigned int, unsigned int, bool> first, std::tuple<unsigned int, unsigned int, bool> second)
+    static bool compareKmers(std::tuple<unsigned int, unsigned int, bool> first, std::tuple<unsigned int, unsigned int, bool> second)
     {
         return std::get<0>(first) < std::get<0>(second);
     }
@@ -85,6 +85,9 @@ public:
         std::deque<std::tuple<unsigned int, unsigned int, bool>> window;
         std::unordered_set<std::tuple<unsigned int, unsigned int, bool>, kmer_hash> minimizers;
 
+        std::cout << "test1"
+				  << "\n\n";
+
         //create first kmer
         for (int i = 0; i < kmer_len; i++)
         {
@@ -93,6 +96,9 @@ public:
         }
         current_kmer = {kmer_value, 0, true};
         current_kmer_c = {kmer_c_value, 0, false};
+
+        std::cout << "first kmer created"
+				  << "\n\n";
 
         //save first kmer and kmer_c
         auto first_kmer = current_kmer;
@@ -106,6 +112,9 @@ public:
             min_begin_kmer = std::min(std::min(current_kmer, current_kmer_c, compareKmers), min_begin_kmer, compareKmers);
             minimizers.insert(min_begin_kmer);
         }
+
+        std::cout << "begin minimizers done"
+				  << "\n\n";
 
         //beggining minimizers inserted, reset current_kmer and current_kmer_c to first_kmer
         current_kmer = first_kmer;
@@ -124,6 +133,8 @@ public:
         }
         minimizers.insert(*std::min_element(window.begin(), window.end(), compareKmers));
 
+        std::cout << "window filled with first window_len kmers"
+				  << "\n\n";
         //iterate through the rest of the sequence
         for (int i = window_len + kmer_len - 1; i < sequence_len; i++)
         {
@@ -133,6 +144,8 @@ public:
             minimizers.insert(*std::min_element(window.begin(), window.end(), compareKmers));
         }
 
+        std::cout << "interior minimizers done"
+				  << "\n\n";
         //current_kmer is last kmer in sequence - start end minimizer
         auto min_end_kmer = std::min(current_kmer, current_kmer_c, compareKmers);
         minimizers.insert(min_end_kmer);
@@ -149,7 +162,9 @@ public:
             minimizers.insert(min_end_kmer);
         }
 
-        std::vector<std::tuple<unsigned int, unsigned int, bool>>(minimizers.begin(), minimizers.end());
+        std::cout << "end minimizers done"
+				  << "\n\n";
+        return std::vector<std::tuple<unsigned int, unsigned int, bool>>(minimizers.begin(), minimizers.end());
     }
 };
 

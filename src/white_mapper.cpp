@@ -47,10 +47,10 @@ private:
 };
 
 //Checks if passed arguments are in fasta and fastq formats
-bool checkArgs(char *argv[])
+bool checkArgs(char *argv[], int argc)
 {
 	const char *extension_fasta[5] = {".fasta", ".fna", ".ffn", ".faa", ".frn"};
-	char *p = strrchr(argv[1], '.');
+	char *p = strrchr(argv[argc-2], '.');
 	int found = 0;
 	if (p)
 	{
@@ -70,7 +70,7 @@ bool checkArgs(char *argv[])
 	}
 
 	const char *extension_fastq[7] = {".fasta", ".fna", ".ffn", ".faa", ".frn", ".fastq", ".fq"};
-	p = strrchr(argv[2], '.');
+	p = strrchr(argv[argc-1], '.');
 	if (p)
 	{
 		for (int i = 0; i < 7; i++)
@@ -108,7 +108,7 @@ void help_print()
 				 "	options:\n"
 				 "		-h, --help\t Prints help message\n"
 				 "		-v, --version\t Prints version\n"
-				 "	---------------------------------------"
+				 "	---------------------------------------\n"
 				 "		-a, --algorithm <int>\n"
 				 "			alignment algorithm:\n"
 				 "			 0 - LOCAL/Smith-Waterman (default)\n"
@@ -136,7 +136,7 @@ void help_print()
 				 "			mapper calculates and prints CIGAR string\n"
 				 "		-t, --thread <int>\n"
 				 "			sets the number of threads\n"
-				 "			default: 1"
+				 "			default: 1\n\n"
 				 "Mapper shows following statistics :\n"
 				 "names of sequences in the reference file and their lengths,\n"
 				 "number of sequences in the fragments file,\n"
@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
 		{"thread", required_argument, nullptr, 't'},
 		{0, 0, 0, 0}};
 
-	while ((opt = getopt_long(argc, argv, "a:m:n:g:k:f:w:hv:", long_options, nullptr)) != -1)
+	while ((opt = getopt_long(argc, argv, "a:m:n:g:k:f:w:c:t:hv:", long_options, nullptr)) != -1)
 	{
 
 		switch (opt)
@@ -280,14 +280,14 @@ int main(int argc, char *argv[])
 	}
 
 	//if the input wasn't help or version flag, then it checks if we have given two arguments
-	if (argc != 3)
+	if (argc < 3)
 	{
 		std::cerr << "error: invalid input, please include exactly two files\n";
 		return 1;
 	}
 
 	//if the given two arguments aren't in valid formats, the program recieves an error
-	if (!checkArgs(argv))
+	if (!checkArgs(argv, argc))
 	{
 		std::cerr << "error: invalid file format, please pass two files in FASTA and FASTQ formats in that order\n";
 		return 1;
@@ -336,6 +336,7 @@ int main(int argc, char *argv[])
 
 	std::string cigar;
 	unsigned int target_begin;
+	std::cout << "Aligning two random sequences...\n\n";
 	int alignment_score = calcAlignment(fragments_size, fragments, &cigar, &target_begin);
 	std::cout << "Alignment score: " << alignment_score << std::endl;
 	std::cout << "Target begin index: " << target_begin << std::endl;
@@ -346,8 +347,6 @@ int main(int argc, char *argv[])
 	int singletons_count = 0;
 	for (auto &seq : reference)
 	{
-		std::cout << "test"
-				  << "\n\n";
 		auto minimizer_vector =
 			white::Minimize(seq->getData().c_str(), seq->getData().size(), kmer_len, window_len);
 
@@ -376,5 +375,6 @@ int main(int argc, char *argv[])
 		<< minimizer_sorted[std::ceil(minimizers_map.size() * ignored_fraction)] 
 		<< std::endl;
 
+	std::ios_base::sync_with_stdio(false);
 	return 0;
 }
