@@ -112,42 +112,41 @@ void help_print()
 				 "	options:\n"
 				 "		-h, --help\t Prints help message\n"
 				 "		-v, --version\t Prints version\n		"
-				 << separator <<
-				 "		-a, --algorithm <int>\n"
-				 "			alignment algorithm:\n"
-				 "			 0 - LOCAL/Smith-Waterman (default)\n"
-				 "			 1 - GLOBAL/Needleman-Wunsch\n"
-				 "			 2 - SEMI-GLOBAL\n"
-				 "		-m, --match_cost <int>\n"
-				 "			sets match cost during alignment\n"
-				 "			default: 1\n"
-				 "		-n, --mismatch_cost <int>\n"
-				 "			sets mismatch cost during alignment\n"
-				 "			default: -1\n"
-				 "		-g, --gap_cost <int>\n"
-				 "			sets linear gap cost during alignment\n"
-				 " 			default: -1\n"
-				 "		-k, --kmer_len <int>\n"
-				 "			sets kmer length for minimizers\n"
-				 "			default: 15\n"
-				 "		-w, --window_len <int>\n"
-				 "			sets window length for minimizers\n"
-				 "			default: 5\n"
-				 "		-f, --ingored_fraction <double> in range [0, 1)\n"
-				 "			sets the percentage of top minimizers to ignore\n"
-				 "			default: 0.001 (0.1%)\n"
-				 "		-c, --cigar\n"
-				 "			mapper calculates and prints CIGAR string\n"
-				 "		-t, --thread <int>\n"
-				 "			sets the number of threads\n"
-				 "			default: 1\n\n"
-				 "Mapper shows following statistics :\n"
-				 "names of sequences in the reference file and their lengths,\n"
-				 "number of sequences in the fragments file,\n"
-				 "their average length,\n"
-				 "N50 length,\n"
-				 "minimal and maximal length.\n\n"
-				 << separator;
+			  << separator << "		-a, --algorithm <int>\n"
+							  "			alignment algorithm:\n"
+							  "			 0 - LOCAL/Smith-Waterman (default)\n"
+							  "			 1 - GLOBAL/Needleman-Wunsch\n"
+							  "			 2 - SEMI-GLOBAL\n"
+							  "		-m, --match_cost <int>\n"
+							  "			sets match cost during alignment\n"
+							  "			default: 1\n"
+							  "		-n, --mismatch_cost <int>\n"
+							  "			sets mismatch cost during alignment\n"
+							  "			default: -1\n"
+							  "		-g, --gap_cost <int>\n"
+							  "			sets linear gap cost during alignment\n"
+							  " 			default: -1\n"
+							  "		-k, --kmer_len <int>\n"
+							  "			sets kmer length for minimizers\n"
+							  "			default: 15\n"
+							  "		-w, --window_len <int>\n"
+							  "			sets window length for minimizers\n"
+							  "			default: 5\n"
+							  "		-f, --ingored_fraction <double> in range [0, 1)\n"
+							  "			sets the percentage of top minimizers to ignore\n"
+							  "			default: 0.001 (0.1%)\n"
+							  "		-c, --cigar\n"
+							  "			mapper calculates and prints CIGAR string\n"
+							  "		-t, --thread <int>\n"
+							  "			sets the number of threads\n"
+							  "			default: 1\n\n"
+							  "Mapper shows following statistics :\n"
+							  "names of sequences in the reference file and their lengths,\n"
+							  "number of sequences in the fragments file,\n"
+							  "their average length,\n"
+							  "N50 length,\n"
+							  "minimal and maximal length.\n\n"
+			  << separator;
 }
 
 //gets the project version from projectControl.h
@@ -198,9 +197,13 @@ int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragme
 void createMinimizerIndex(const std::unique_ptr<Sequence> &seq,
 						  std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> &index)
 {
-	auto minimizers_vector =
+	//const char* seq_test = "TACGTACCGTA";
+	auto minimizers_vector = //white::Minimize(seq_test, 11, kmer_len, window_len);
 		white::Minimize(seq->getData().c_str(), seq->getData().size(), kmer_len, window_len);
-
+	for (auto& vec : minimizers_vector) {
+		std::cout << std::get<0>(vec) << ", " << std::get<1>(vec) << ", " << (std::get<2>(vec) ? "1" : "0") << "\n";
+	}
+	
 	for (auto min : minimizers_vector)
 	{
 		index[std::get<0>(min)]
@@ -241,11 +244,19 @@ void createReferenceIndex(const std::unique_ptr<Sequence> &seq,
 			  << ignored_fraction * 100 << "% most frequent ignored: "
 			  << distinct_minimizer_occurances[ignore_top_minimizers].first
 			  << std::endl;
-	
+
 	//remove most frequently occuring minimizers from index
-	for (int i = 0; i < ignore_top_minimizers; i++) {
+	for (int i = 0; i < ignore_top_minimizers; i++)
+	{
 		index.erase(distinct_minimizer_occurances[i].second);
 	}
+}
+
+std::string mapToReference(const std::vector<std::unique_ptr<Sequence>> &fragments,
+						   const std::unique_ptr<Sequence> &reference,
+						   std::unordered_map<unsigned int, std::vector<std::pair<unsigned int, bool>>> &reference_index,
+						   int fragments_begin, int fragments_end)
+{
 }
 
 int main(int argc, char *argv[])
@@ -366,9 +377,9 @@ int main(int argc, char *argv[])
 	//names of sequences in the reference file and their lengths
 	for (int i = 0; i < reference_size; i++)
 	{
-		std::cerr << "\nReference genome information:\n" 
-				<< "	Name of sequence: " << reference[i]->getName() << "\n"
-				<< "	Length of sequence: " << reference[i]->getData().size() << "\n\n";
+		std::cerr << "\nReference genome information:\n"
+				  << "	Name of sequence: " << reference[i]->getName() << "\n"
+				  << "	Length of sequence: " << reference[i]->getData().size() << "\n\n";
 	}
 
 	//number of sequences in the fragments file
@@ -394,7 +405,8 @@ int main(int argc, char *argv[])
 	std::cerr << "	Minimum length: " << fragmentVector.front() << "\n";
 	std::cerr << "	Maximum length: " << fragmentVector.back() << "\n";
 	std::cerr << "	Average length of fragments: " << avg_size << "\n";
-	std::cerr << "	N50 length: " << fragmentVector[N50] << "\n" << separator;
+	std::cerr << "	N50 length: " << fragmentVector[N50] << "\n"
+			  << separator;
 
 	//ALIGNMENT
 	std::string cigar;
@@ -411,29 +423,30 @@ int main(int argc, char *argv[])
 	createReferenceIndex(reference[0], reference_index);
 	std::ios_base::sync_with_stdio(false);
 
-
 	int fragments_in_thread = ceil(fragments_size / thread_count);
 	int frag_begin = 0;
 	thread_pool::ThreadPool thread_pool{};
 	std::vector<std::future<std::string>> futures;
 
-	for (int i = 0; i < (thread_count - 1);  i++) {
+	for (int i = 0; i < (thread_count - 1); i++)
+	{
 		futures.emplace_back(
-			thread_pool.Submit(mapFragmentsToReference,
-				std::ref(fragments),
-				std::ref(reference[0]),
-			   	std::ref(reference_index),
-				frag_begin, frag_begin + fragments_in_thread));
-        frag_begin += fragments_in_thread;
+			thread_pool.Submit(mapToReference,
+							   std::ref(fragments),
+							   std::ref(reference[0]),
+							   std::ref(reference_index),
+							   frag_begin, frag_begin + fragments_in_thread));
+		frag_begin += fragments_in_thread;
 	}
 	futures.emplace_back(
-			thread_pool.Submit(mapFragmentsToReference,
-				std::ref(fragments),
-				std::ref(reference[0]),
-			   	std::ref(reference_index),
-				frag_begin, frag_begin + fragments_in_thread));
+		thread_pool.Submit(mapToReference,
+						   std::ref(fragments),
+						   std::ref(reference[0]),
+						   std::ref(reference_index),
+						   frag_begin, frag_begin + fragments_in_thread));
 
-	for (auto& fut : futures) {
+	for (auto &fut : futures)
+	{
 		std::string s = fut.get();
 		std::cout << s;
 	}

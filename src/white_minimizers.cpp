@@ -59,13 +59,14 @@ private:
     {
         unsigned int new_kmer_value = std::get<0>(current_kmer) & delete_first_char;
         new_kmer_value = (new_kmer_value << 2) | mapLetter(sequence[seq_position]);
-        unsigned int new_kmer_pos = seq_position - kmer_len + 1;
+        unsigned int new_kmer_pos = std::get<1>(current_kmer) + 1;
 
         unsigned int new_kmer_c_value = std::get<0>(current_kmer) & delete_first_char;
-        new_kmer_c_value = (new_kmer_c_value << 2) | mapLetter(sequence[seq_position]);
+        new_kmer_c_value = (new_kmer_c_value << 2) | Complement(mapLetter(sequence[sequence_len - seq_position - 1]));
+        unsigned int new_kmer_pos_c = std::get<1>(current_kmer_c) + 1;
 
         current_kmer = {new_kmer_value, new_kmer_pos, true};
-        current_kmer_c = {new_kmer_c_value, new_kmer_pos, false};
+        current_kmer_c = {new_kmer_c_value, new_kmer_pos_c, false};
     }
 
 public:
@@ -89,7 +90,7 @@ public:
         for (int i = 0; i < kmer_len; i++)
         {
             kmer_value = (kmer_value << 2) | mapLetter(sequence[i]);
-            kmer_c_value = (kmer_c_value << 2) | Complement(mapLetter(sequence[i]));
+            kmer_c_value = (kmer_c_value << 2) | Complement(mapLetter(sequence[sequence_len - i - 1]));
         }
         current_kmer = {kmer_value, 0, true};
         current_kmer_c = {kmer_c_value, 0, false};
@@ -102,6 +103,7 @@ public:
 
         //beginning minimizers
         auto min_begin_kmer = std::min(current_kmer, current_kmer_c, compareKmers);
+        minimizers.insert(min_begin_kmer);
         for (int i = 1; i < window_len - 1; i++)
         {
             nextKmer(i);
@@ -142,14 +144,16 @@ public:
         //current_kmer is last kmer in sequence - start end minimizer
         auto min_end_kmer = std::min(current_kmer, current_kmer_c, compareKmers);
         minimizers.insert(min_end_kmer);
-        for (int i = sequence_len - kmer_len - 1; i > sequence_len - kmer_len - window_len + 1; i--)
+        for (int i = sequence_len - 1 - kmer_len; i > sequence_len - kmer_len - window_len + 1; i--)
         {
             unsigned int new_kmer_value = (std::get<0>(current_kmer) >> 2) | (mapLetter(sequence[i]) << 4);
-            unsigned int new_kmer_c_value = (std::get<0>(current_kmer_c) >> 2) | (Complement(mapLetter(sequence[i]) << 4));
-            unsigned int new_kmer_pos = i;
+            unsigned int new_kmer_pos = std::get<1>(current_kmer) - 1;
+            
+            unsigned int new_kmer_c_value = (std::get<0>(current_kmer_c) >> 2) | (Complement(mapLetter(sequence[sequence_len - i - 1])) << 4);
+            unsigned int new_kmer_pos_c = std::get<1>(current_kmer_c) - 1;
 
             current_kmer = {new_kmer_value, new_kmer_pos, true};
-            current_kmer_c = {new_kmer_c_value, new_kmer_pos, false};
+            current_kmer_c = {new_kmer_c_value, new_kmer_pos_c, false};
 
             min_end_kmer = std::min(std::min(current_kmer, current_kmer_c, compareKmers), min_end_kmer, compareKmers);
             minimizers.insert(min_end_kmer);
