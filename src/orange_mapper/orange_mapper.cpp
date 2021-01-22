@@ -8,6 +8,7 @@
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
 #include "orange_alignment/orange_alignment.h"
+#include "orange_minimizer/orange_minimizer.h"
 
 using namespace std;
 #define VERSION "v0.1.0"
@@ -18,6 +19,10 @@ static int alg_flag = 0;
 static int match_flag = 1;
 static int mismatch_flag = -1;
 static int gap_flag = -1;
+static int kmer_len = 15;
+static int window_len = 5;
+static double frequency = 0.001;
+//std::unordered_map<Kmer, unsigned int> minimizer_count;
 
 void printHelp(){
     std::cout << "\norange_mapper usage:\n"
@@ -55,28 +60,52 @@ public:
     string names, datas;
 };
 
+void get_minimizers(const vector<unique_ptr<Sequence>> &fragments, unsigned int kmer_len, unsigned int window_len, double f){
+
+	unsigned int sequence_len;
+	vector <tuple<unsigned int, unsigned int, bool>> distinct;
+	vector <tuple<unsigned int, unsigned int, bool>> all;
+	char *sequence;
+        for (int i = 0; i < fragments.size(); i++) {
+            strcpy(sequence, (fragments[i]->datas).c_str());
+        }
+	orange::Minimizer *m = new orange::Minimizer(sequence, sequence_len, kmer_len, window_len);
+	distinct = m->Minimize(sequence, sequence_len, kmer_len, window_len);
+	all = m->all_minimizers(sequence, sequence_len, kmer_len, window_len);
+	cout << "Number of distinct minimizers: " << distinct.size();
+	cout << "Fraction of singletons: "<< distinct.size()/all.size();
+	return;
+}
+
 int calculate_score(int algorithm, int gap, int match, int mismatch, const vector<unique_ptr<Sequence>> &fragments){
 	int index1, index2;
 	string cigar;
     	unsigned int target_begin;
-	
+
 	srand((unsigned)time(NULL));
 	while(1){
+
 		index1 = rand()%(fragments.size()) + 0;
 		if(fragments[index1]->datas.length() < 5000){
+
 			break;
+			
 		}
 	}
 	while(1){
+
 		index2 = rand()%(fragments.size()) + 0;
 		if(fragments[index2]->datas.length() < 5000){
+
 			break;
 		}
 	}
-	char query[] = strcpy(query, fragments[index1]->datas.c_str());
 	int query_len = fragments[index1]->datas.length();
-	char target[] = strcpy(query, fragments[index2]->datas.c_str());
-	int target_len = fragments[index2]->datas.length();
+        char query[query_len]; 
+    	strcpy(query, fragments[index1]->datas.c_str());
+    	int target_len = fragments[index2]->datas.length();
+    	char target[target_len];
+    	strcpy(query, fragments[index2]->datas.c_str());
 	orange::AlignmentType type;
 	if(algorithm == 0){
 		type = orange::AlignmentType::global;
@@ -86,7 +115,7 @@ int calculate_score(int algorithm, int gap, int match, int mismatch, const vecto
 	else if(algorithm == 2){
 		type = orange::AlignmentType::semiGlobal;
 	}
-    orange::Alignment* a = new orange::Alignment(query, sizeof(query), target, sizeof(target), type, match, mismatch, gap, cigar, target_begin);
+    orange::Alignment* a = new orange::Alignment(query, sizeof(query), target, sizeof(target), type, match, mismatch, gap, &cigar, &target_begin);
     return a->Align(query, query_len, target, target_len, type, match, mismatch, gap, &cigar, &target_begin);
 }
 
@@ -100,6 +129,8 @@ int main(int argc, char *argv[]){
             {"match", required_argument, &match_flag, 1},
             {"mismatch", required_argument, &mismatch_flag, 1},
             {"gap", required_argument, &gap_flag, 1},
+            {"kmer", required_argument, &kmer_len, 1},
+            {"window", required_argument, &window_len, 1},
             {0, 0, 0, 0}    
     };
     
@@ -129,6 +160,15 @@ int main(int argc, char *argv[]){
         case 'g':
             gap_flag = stoi(optarg);
             break;
+        case 'k':
+            kmer_len = stoi(optarg);
+            break;
+        case 'w':
+            window_len = stoi(optarg);
+            break;
+       	case 'f':
+            frequency = stoi(optarg);
+            break;    
         case '?':
             break;    
         default:
@@ -182,10 +222,20 @@ int main(int argc, char *argv[]){
 
         //maximal length - first element
         cerr<<"Maximal length = "<<len.front()<<"\n";
-        
+         std::vector<std::unique_ptr<Sequence>> fdok;
+            std::uint32_t chunk_size = 500 * 1024 * 1024;  // 500 MB
+            for (auto t = fragments->Parse(chunk_size); !t.empty(); t = fragments->Parse(chunk_size)) {
+                fdok.insert(
+                    fdok.end(),
+                    std::make_move_iterator(t.begin()),
+                    std::make_move_iterator(t.end()));
+            }
         //alignment score 
         int score = calculate_score(alg_flag, gap_flag, match_flag, mismatch_flag, fragments_parsed);
-        cerr<<"Alignment score = "<<score<<"\n";
+       // cerr<<"Alignment score = "<<score<<"\n";
+
+    	get_minimizers(fdok, kmer_len, window_len, frequency);
+	
     }
     return 0;
 }

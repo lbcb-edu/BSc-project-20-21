@@ -107,11 +107,26 @@ namespace orange {
             temp = checkWindow(sequence, s, k, w, i);
             results.push_back(temp);
         }
-        //removing duplicates
-        results.erase(unique(results.begin(), results.end()), results.end());
         return results;
     }
 
+	vector<tuple<unsigned int, unsigned int, bool>> Minimizer::all_minimizers(
+        const char* sequence, unsigned int sequence_len, unsigned int kmer_len, unsigned int window_len) {
+        vector<Kmer> all;
+        vector<Kmer> temp;
+
+        //interior minimizers
+        temp = checkAll(sequence, sequence_len, kmer_len, window_len);
+        all.insert(end(all), begin(temp), end(temp));
+
+        //end minimizers
+        temp = endMinimizers(sequence, sequence_len, kmer_len, window_len);
+        all.insert(end(all), begin(temp), end(temp));
+
+        sort(all.begin(), all.end());
+
+        return all;
+	}
 
     vector<tuple<unsigned int, unsigned int, bool>> Minimizer::Minimize(
         const char* sequence, unsigned int sequence_len, unsigned int kmer_len, unsigned int window_len) {
