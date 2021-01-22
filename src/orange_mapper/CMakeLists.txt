@@ -19,13 +19,28 @@ add_subdirectory(orange_minimizer)
 target_link_libraries(${PROJECT_NAME} bioparser orange_alignment)
 target_link_libraries(${PROJECT_NAME} bioparser orange_minimizer)
 
-# Setup testing
-#enable_testing()
-#find_package(GTest REQUIRED)
-#include_directories(${GTEST_INCLUDE_DIR})
 
-#add_executable(_test
- #   orange_mapper_test.cpp
-#)
-#target_link_libraries(test orange_mapper GTest::Main)
+
+option(orange_minimizers_build_tests "Build unit tests for orange minimizers" ON)
+if (orange_minimizers_build_tests)
+  enable_testing()
+  find_package(GTest REQUIRED)
+  add_executable(${PROJECT_NAME}_minimizers_test
+    test/orange_minimizers_test.cpp
+  )
+  target_link_libraries(${PROJECT_NAME}_minimizers_test PUBLIC orange_minimizers GTest::Main)
+  
+endif()
+
+option(orange_alignment_build_tests "Build unit tests for orange alignment" ON)
+if (orange_alignment_build_tests)
+  enable_testing()
+  find_package(GTest REQUIRED)
+  add_executable(${PROJECT_NAME}_alignment_test
+    test/orange_alignment_test.cpp
+  )
+  target_link_libraries(${PROJECT_NAME}_alignment_test PUBLIC orange_alignment GTest::Main)
+  
+endif()
+
 
