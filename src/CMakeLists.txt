@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2.2)
 
 # set the project name and version
-project(pink_mapper VERSION 0.3.0)
+project(pink_mapper VERSION 0.4.0)
 
 configure_file(Pink_mapperConfig.h.in Pink_mapperConfig.h)
 
@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(ALIGN_INCLUDES ${PROJECT_SOURCE_DIR}/../include/align)
 set(MINIMIZERS_INCLUDES ${PROJECT_SOURCE_DIR}/../include/minimizers)
+set(DEMO_INCLUDES ${PROJECT_SOURCE_DIR}/../include/demo)
 set(PARSER_INCLUDES ${PROJECT_SOURCE_DIR}/../include/bioparser)
 set(HELP_INCLUDES ${PROJECT_SOURCE_DIR}/../include/help)
 file(GLOB SRC_FILES *.cpp)
@@ -24,7 +25,10 @@ include_directories(${PARSER_INCLUDES})
 include_directories(${ALIGN_INCLUDES})
 include_directories(${MINIMIZERS_INCLUDES})
 include_directories(${HELP_INCLUDES})
+include_directories(${DEMO_INCLUDES})
 
+add_compile_options(-fopenmp)
+set(CMAKE_CXX_FLAGS "-fopenmp")
 add_executable(${PROJECT_NAME} pink_mapper.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC
