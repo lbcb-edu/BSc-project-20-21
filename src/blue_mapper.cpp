@@ -9,13 +9,12 @@
 #include <random>
 #include <unordered_map>
 
-#include "thread_pool/thread_pool.hpp"
 #include "bioparser/fasta_parser.hpp"
 #include "bioparser/fastq_parser.hpp"
 #include "blue_alignment.hpp"
 #include "blue_minimizers.hpp"
 #include "matcher.hpp"
-
+#include "thread_pool/thread_pool.hpp"
 
 static constexpr option options[] = {
     {"algorithm", required_argument, nullptr, 'a'},
@@ -71,7 +70,7 @@ void Help() {
                "      default: 0.001\n"
                "      fraction of most frequent minimizers to be ignored\n"
                "    -c, --cigar\n"
-               "      print CIGAR string\n"
+               "      compute alignment and print CIGAR string\n"
                "    -t, --threads\n"
                "      default: 1\n"
                "      number of threads\n"
@@ -201,6 +200,8 @@ std::vector<std::unique_ptr<Sequence>> Parse(const std::string& file) {
 MinimizerIndex CreateMinimizerIndex(std::unique_ptr<Sequence>& sequence,
                                     int8_t kmer_len, int8_t window_len,
                                     double ignored_fraction) {
+  std::cout << "Creating minimizer index..." << std::endl;
+
   auto minimizers = blue::Minimize(
       sequence->data_.c_str(), sequence->data_.size(), kmer_len, window_len);
 
@@ -256,7 +257,7 @@ Subsequence LIS(std::vector<Match>& matches, bool type) {
 void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
          std::unique_ptr<Sequence>& fragment, int8_t kmer_len,
          int8_t window_len, blue::AlignmentType alignment_type, int match,
-         int mismatch, int gap, bool print_cigar) {
+         int mismatch, int gap, bool cigar_arg) {
   std::vector<blue::Kmer> frag_minimizers = blue::Minimize(
       fragment->data_.c_str(), fragment->data_.size(), kmer_len, window_len);
 
@@ -294,14 +295,13 @@ void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
 
   // lengths used for alignment
   auto query_align_len = query_end + kmer_len - query_start;
-  auto target_align_len =
-      (target_end + kmer_len - target_start) * (type ? -1 : 1);
+  auto target_align_len = std::min(
+      10000u, (target_end + kmer_len - target_start) * (type ? -1 : 1));
 
   // apply orientation to indexes
   target_end = (type ? target_start : target_end + kmer_len);
   target_start = (type ? target_start - target_align_len : target_start);
   query_end += kmer_len;
-  // TODO: granice +- kmer_len ?
 
   // clang-format off
   std::string paf = fragment->name_ + '\t'
@@ -326,7 +326,7 @@ void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
   };
 
   std::string cigar;
-  if (print_cigar) {
+  if (cigar_arg) {
     std::string query_rc;
     if (type) {  // compute query reverse complement
       for (int i = query_end; i >= query_start; i--) {
@@ -334,8 +334,6 @@ void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
       }
     }
 
-    std::cout << query_rc.size() << " " << query_align_len << " "
-              << target_align_len << std::endl;
     unsigned _;  // not used
     blue::Align(
         (type ? query_rc.c_str() : fragment->data_.c_str() + query_start),
@@ -351,21 +349,21 @@ void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
         buff += c - '0';
       } else {
         if (c == '=') match_count += buff;
-        total += buff;
+        if (c != 'S') total += buff;
         buff = 0;
       }
     }
 
     paf += std::to_string(match_count) + '\t' + std::to_string(total) + '\t';
-  } else {
-    // unsigned aprox10 = 0, aprox11 = 0;  // TODO aproximate columns 10 & 11
-    // paf += std::to_string(aprox10) + '\t' + std::to_string(aprox11) + '\t';
+  } else {  // approximate col 10 and 11
+    paf += std::to_string(query_align_len) + '\t' +
+           std::to_string(std::max(query_align_len, target_align_len)) + '\t';
   }
 
   unsigned quality = 255;
   paf += std::to_string(quality) + '\t';
 
-  if (print_cigar) paf += "cg:Z:" + cigar;
+  if (cigar_arg) paf += "cg:Z:" + cigar;
 
   std::cout << paf << std::endl;
 }
@@ -379,7 +377,7 @@ int main(int argc, char* argv[]) {
   int8_t window_len = 5;
   int8_t num_of_threads = 1;
   double ignored_fraction = 0.001;
-  bool print_cigar = false;
+  bool cigar_arg = false;
 
   const char* opt_string = "a:m:n:g:k:w:f:t:vhc";
   int opt;
@@ -393,7 +391,7 @@ int main(int argc, char* argv[]) {
       case 'w': window_len = atoi(optarg); break;
       case 'f': ignored_fraction = atof(optarg); break;
       case 't': num_of_threads = atof(optarg); break;
-      case 'c': print_cigar = true; break;
+      case 'c': cigar_arg = true; break;
       case 'v': Version(); return 0;
       case 'h': Help(); return 0;
       default: return 1;
@@ -447,6 +445,7 @@ int main(int argc, char* argv[]) {
 
   PrintStats(fragments);
 
+#if 0
   // align two random sequences
   std::cout << "Aligning two random sequences..." << std::endl;
   std::vector<Sequence*> short_fragments;  // fragments with length < 5000
@@ -482,31 +481,33 @@ int main(int argc, char* argv[]) {
   MinimizerStats(reference, kmer_len, window_len, ignored_fraction);
   std::cout << "Fragments minimizers" << std::endl;
   MinimizerStats(fragments, kmer_len, window_len, ignored_fraction);
+#endif
 
   // MAPPING
   std::ios_base::sync_with_stdio(false);
 
-
   thread_pool::ThreadPool thread_pool(num_of_threads);
   std::vector<std::future<void>> futures;
 
-  blue::AlignmentType alignment_type = static_cast<blue::AlignmentType>(algorithm);
+  blue::AlignmentType alignment_type =
+      static_cast<blue::AlignmentType>(algorithm);
 
   for (auto& ref : reference) {
     MinimizerIndex reference_index =
         CreateMinimizerIndex(ref, kmer_len, window_len, ignored_fraction);
-    
+
     for (auto& frag : fragments) {
-      futures.emplace_back(thread_pool.
-                    Submit(Map,std::ref(reference_index),std::ref(ref),std::ref(frag),
-                    std::ref(kmer_len),std::ref(window_len), std::ref(alignment_type),
-                    std::ref(match_cost),std::ref(mismatch_cost),std::ref(gap_cost),std::ref(print_cigar)));
+      futures.emplace_back(thread_pool.Submit(
+          Map, std::ref(reference_index), std::ref(ref), std::ref(frag),
+          std::ref(kmer_len), std::ref(window_len), std::ref(alignment_type),
+          std::ref(match_cost), std::ref(mismatch_cost), std::ref(gap_cost),
+          std::ref(cigar_arg)));
     }
 
     for (const auto& it : futures) {
       it.wait();
     }
   }
-  
+
   return 0;
 }
