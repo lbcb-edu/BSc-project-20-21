@@ -21,19 +21,19 @@ white::Aligner::Aligner(const char *query, unsigned int query_len, const char *t
 
 int white::Aligner::NeedlemanWunsch()
 {
-    //std::cout << "checkNeedle1\n";
+
     for (int i = 1; i < query_len + 1; i++)
     {
         Mat[i][0].value = i;
         Mat[i][0].operation = kDelete;
     }
-    //std::cout << "checkNeedle2\n";
+
     for (int i = 1; i < target_len + 1; i++)
     {
         Mat[0][i].value = i;
         Mat[0][i].operation = kInsert;
     }
-    //std::cout << "checkNeedle3\n";
+    
     for (int i = 2; i < query_len + 1; i++)
     {
         for (int j = 2; j < target_len + 1; j++)
@@ -69,19 +69,15 @@ int white::Aligner::NeedlemanWunsch()
             Mat[i][j].value = min;
             Mat[i][j].operation = op;
         }
-        //std::cout << "checkNeedle5\n";
     }
-    //std::cout << "check3\n";
+
     if (cigar)
     {
-        //std::cout << "checkexist\n";
         std::string starting_cigar = "";
         int row = query_len;
         int col = target_len;
         *cigar = CigarBuilder(row, col, starting_cigar) + '\0';
-        //std::cout << "checkcigarassign\n";
         *target_begin = 1;
-        //std::cout << "check4\n";
     }
 
     return Mat[query_len][target_len].value;
@@ -240,7 +236,6 @@ int white::Aligner::SemiGlobal()
 
 std::string white::Aligner::CigarBuilder(int &row, int &col, std::string starting_cigar)
 {
-    //std::cout << "checkCigarBuilder1\n";
     while (Mat[row][col].operation != kNone)
     {
         switch (Mat[row][col].operation)
@@ -271,7 +266,6 @@ std::string white::Aligner::CigarBuilder(int &row, int &col, std::string startin
             break;
         }
     }
-    //std::cout << "checkcigar2\n";
 
     std::string final_cigar = "";
     char symbol = starting_cigar[0];
@@ -292,7 +286,6 @@ std::string white::Aligner::CigarBuilder(int &row, int &col, std::string startin
         }
     }
     final_cigar += std::to_string(count) + symbol;
-    std::cout << "checkfinalcigar\n";
     return final_cigar;
 }
 
