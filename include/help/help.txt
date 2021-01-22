@@ -1,18 +1,26 @@
 R"(
 	Usage:
-	   ./pink_mapper [PATH] [PATH] [OPTION k|w|f]...
-	   ./pink_mapper [PATH] [PATH] -a [OPTION m|n|g]...
+	   ./pink_mapper [PATH] [PATH] [OPTION]...
 	   ./pink_mapper [OPTION h|v]
 
-	   Accepts two FASTA or FASTQ files, finds minimizers in both files and outpus number of distincitve minimizers, fractions of singletons
-	   and the number of occurences of the most frequent minimzer when the top f frequent minimizers are not taken into the account.
-	   The first file is a refrence genome in FASTA format,
+	   Accepts two FASTA or FASTQ files.
+	   The first file is a reference genome in FASTA format,
 	   while the second file is a set of fragments in either FASTA or FASTQ format.
-	   Additionally, it outpouts basic statistics on given fasta/fastq files.
+	   Additionally, it outputs basic statistics on given fasta/fastq files.
 	   Basic statistics include:
 	   	-names of sequences in the reference file and their lengths
 	   	-number of sequences in the fragments file, their average length, N50 length, minimal and maximal length
 	   Optionally, it picks two random fragment sequences with lengths not exceeding 5000 and aligns them.
+	   Aligns each of the inputed fragments to the given reference genome.
+	   First, it creates a minimizer index from the reference genome, which store all positions 
+	   and origins for each distinct minimizer found in the reference. 
+	   All minimizers of a fragment are searched against the reference index to find matches. 
+	   From the list of all matches for a pair of (fragment, reference), the longest linear chain should represent the best 
+	   candidate for a good alignment between the pair. That region is obtained in quasilinear time by solving the longest 
+	   increasing subsequence problem on the list of minimizer matches. The alignment procedure is invoked only 
+	   on the found regions ([q_begin, q_end] and [t_begin, t_end]).
+	   The found regions are printed in PAF format (text format describing the approximate mapping positions between 
+	   two set of sequences) to stdout. 
 	   
 
 	Options:
@@ -24,5 +32,7 @@ R"(
 	   -g <gap>			   = gap cost
 	   -k <kmer_length>		   = kmer length
 	   -w <window_length>		   = window length
-	   -f
+	   -f <frequency>		   = too frequent minimizers to be ignored (percentage)
+	   -c		     		   = Includes CIGAR strings of the alignment
+	   -t <thread_num>       	   = number of threads for parallelization of the mapper
 )"
