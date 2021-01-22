@@ -150,6 +150,7 @@ void version_print()
 {
 	std::cout << PROJECT_VER << std::endl;
 }
+
 int calcAlignment(int size, const std::vector<std::unique_ptr<Sequence>> &fragment_list, std::string *cigar, unsigned int *target_begin)
 {
 	srand(time(NULL));
