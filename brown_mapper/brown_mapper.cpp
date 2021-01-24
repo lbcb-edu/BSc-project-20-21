@@ -1,12 +1,12 @@
 #include <iostream>
 #include <getopt.h>
-#include "bioparser/include/bioparser/parser.hpp"
-#include "bioparser/include/bioparser/fastq_parser.hpp"
-#include "bioparser/include/bioparser/fasta_parser.hpp"
-#include "thread_pool/include/thread_pool/thread_pool.hpp"
-#include "thread_pool/include/thread_pool/semaphore.hpp"
-#include "brown_alignment.hpp"
-#include "brown_minimizer.hpp"
+#include "include/bioparser/include/bioparser/parser.hpp"
+#include "include/bioparser/include/bioparser/fastq_parser.hpp"
+#include "include/bioparser/include/bioparser/fasta_parser.hpp"
+#include "include/thread_pool/include/thread_pool/thread_pool.hpp"
+#include "include/thread_pool/include/thread_pool/semaphore.hpp"
+#include "include/brown_alignment.hpp"
+#include "include/brown_minimizer.hpp"
 #include <stdlib.h>
 #include <time.h>
 #include <map>
@@ -123,7 +123,8 @@ bool comparePairOfMatches(std::pair<unsigned int, unsigned int>& a, std::pair<un
     return a.first < b.first;
 }
 
-void cutOffTooFrequentMinimizers(std::vector<std::tuple<unsigned int, unsigned int, bool>>& minimizers) {
+void cutOffTooFrequentMinimizers(std::vector<std::tuple<unsigned int, unsigned int, bool>>& minimizers,
+                                std::string name) {
     std::map<unsigned int, unsigned int> minimizers_map;
     unsigned int singletons = 0;
     for(unsigned int i = 0; i < minimizers.size(); i++) {
@@ -133,7 +134,8 @@ void cutOffTooFrequentMinimizers(std::vector<std::tuple<unsigned int, unsigned i
             singletons++;
         } else { 
             minimizers_map[currentMinimizer]++;
-            singletons--;
+            if (minimizers_map[currentMinimizer] == 2)
+                singletons--;
         }
     }
     std::cerr << "Finished counting occurences of minimizers.." << std::endl;
@@ -150,30 +152,29 @@ void cutOffTooFrequentMinimizers(std::vector<std::tuple<unsigned int, unsigned i
 
 
     unsigned int original_size = minimizers.size();
-        /*unsigned int cuurent_size = minimizers.size();
-    for (unsigned int i = 0; i < cuurent_size; i++) {
+    for (unsigned int i = 0; i < minimizers.size(); i++) {
         if (std::find(unwanted_minimizers.begin(), unwanted_minimizers.end(), std::get<0>(minimizers[i])) != unwanted_minimizers.end()) {
             minimizers.erase(minimizers.begin() + i);
         }
-        for (unsigned int j = 0; j < unwanted_minimizers.size(); j++) {
+        /*for (unsigned int j = 0; j < unwanted_minimizers.size(); j++) {
             if (std::get<0>(minimizers[i]) == unwanted_minimizers[j]) {
                 minimizers.erase(minimizers.begin() + i);
                 cuurent_size = minimizers.size();
                 break;
             }
-        }
-    }*/
+        }*/
+    }
 
-    for (unsigned int i = 0; i < unwanted_minimizers.size(); i++) {
+    /*for (unsigned int i = 0; i < unwanted_minimizers.size(); i++) {
         std::tuple<unsigned int, unsigned int, bool> fake_tuple = std::make_tuple(unwanted_minimizers[i], 0, false);
         std::remove_if(minimizers.begin(), minimizers.end(), [fake_tuple] (std::tuple<unsigned int, unsigned int, bool> n) {
                                                                 return std::get<0>(fake_tuple) == std::get<0>(n);
                                                                 });
-    }
+    }*/
     
     
-    std::cerr << "Total number of minimizers in fragment: " << original_size << "." << std::endl;
-    std::cerr << "The fraction of singletone minimizers in fragments:  " << ((double) singletons) / original_size//krivi ispis
+    std::cerr << "Total number of minimizers in fragment " << name << ": " << original_size << "." << std::endl;
+    std::cerr << "The fraction of singletone minimizers in fragment:  " << ((double) singletons) / original_size
                 << "." << std::endl;
     std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
                 << " frequent minimizers are not taken in account: " << sorted_map_values[fth_minimizer_index].second << std::endl << std::endl;
@@ -234,7 +235,7 @@ void mapping(Sequence fragment) {
                                                                                                     kmer_length,
                                                                                                     window_length);
     
-    cutOffTooFrequentMinimizers(fragment_minimizers);
+    cutOffTooFrequentMinimizers(fragment_minimizers, fragment.sequenceName);
     
     std::vector<std::pair<unsigned int, unsigned int>> original_matches;
     std::vector<std::pair<unsigned int, unsigned int>> revcompl_matches;
@@ -491,7 +492,7 @@ int main(int argc, char* argv[]) {
                                                 referenceGenom[0]->sequenceSequence.length() , 
                                                 kmer_length, window_length);
         
-        cutOffTooFrequentMinimizers(reference_minimizers);
+        cutOffTooFrequentMinimizers(reference_minimizers, referenceGenom[0]->sequenceName);
 
         thread_pool::ThreadPool pool(thread_number);
 

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../brown_minimizer.hpp"
+#include "../include/brown_minimizer.hpp"
 
 TEST(MinimizerTests, MinimizerTest1) {
     std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers = brown::Minimize("CACGATATCG", 10, 3, 4);

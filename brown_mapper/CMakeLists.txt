@@ -2,23 +2,14 @@ cmake_minimum_required(VERSION 3.10)
 
 project(brown_mapper)
 
-add_library(brown_align brown_alignment.hpp brown_alignment.cpp)
-add_library(brown_minim brown_minimizer.hpp brown_minimizer.cpp)
-
 add_executable(brown_mapper brown_mapper.cpp)
+
+add_subdirectory(include)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 target_include_directories("${PROJECT_NAME}" PUBLIC "${PROJECT_BINARY_DIR}")
-
-if (NOT TARGET bioparser)
-  add_subdirectory(bioparser EXCLUDE_FROM_ALL)
-endif ()
-
-if (NOT TARGET thread_pool)
-  add_subdirectory(thread_pool EXCLUDE_FROM_ALL)
-endif ()
 
 target_link_libraries(brown_mapper bioparser thread_pool brown_align brown_minim)
 

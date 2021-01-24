@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../brown_alignment.hpp"
+#include "../include/brown_alignment.hpp"
 
 TEST(AlignTests, GlobalAlignTest1) {
     std::string* cigar = new std::string;
