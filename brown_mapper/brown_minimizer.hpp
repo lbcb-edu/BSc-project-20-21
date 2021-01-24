@@ -9,5 +9,7 @@
                 const char* sequence, unsigned int sequence_len,
                 unsigned int kmer_len,
                 unsigned int window_len);
+
+        unsigned int getReversedComplKmerValue(unsigned int value, unsigned int length);
     }
 #endif

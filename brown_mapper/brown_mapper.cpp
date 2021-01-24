@@ -10,50 +10,13 @@
 #include <stdlib.h>
 #include <time.h>
 #include <map>
+#include <set>
+#include <ctype.h>
 
 #define VERSION "v0.7"
 #define DEFAULT_KMER_LENGTH 15
 #define DEFAULT_WINDOW_LENGTH 5
 #define DEFAULT_MINIMIZER_FREQUENCY 0.001
-
-std::vector<std::tuple<unsigned int, unsigned int, bool>> reference_minimizers;
-brown::AlignmentType type;
-int match, gap, mismatch;
-int kmer_length = DEFAULT_KMER_LENGTH, window_length = DEFAULT_WINDOW_LENGTH;
-int thread_number;
-double frequency = DEFAULT_MINIMIZER_FREQUENCY;
-
-static option long_options[] = {
-    {"help", no_argument, nullptr, 'h'},
-    {"version", no_argument, nullptr, 'v'},
-    {0, 0, 0, 0}
-};
-
-static std::string help = "brown_mapper \n"
-                            "-h or --help for help\n"
-                            "-v or --version for programs version\n\n"
-                            "Alignment arguments:\n"
-                            "-m   value for matching\n"
-                            "-n   value for mismatching\n"
-                            "-g   value for gap\n\n"
-                            "Minimizer arguments:\n"
-                            "-k   k-mer length (default: " + std::to_string(DEFAULT_KMER_LENGTH) + ")\n"
-                            "-w   window length (default: " + std::to_string(DEFAULT_WINDOW_LENGTH) + ")\n"
-                            "-f   top f frequent minimizers that will not be taken in account (default: " 
-                            + std::to_string(DEFAULT_MINIMIZER_FREQUENCY) + ")\n"
-                            "-a   alignment type (GLOBAL, SEMIGLOBAL or LOCAL)\n\n"
-                            "Program accepts two files as floating arguments.\n"
-                            "The first file needs to contain a reference genome in FASTA format.\n"
-                            "The second file needs to contain a set of fragments\n"
-                            "in either FASTA or FASTQ format.";
-
-static std::string genomLine = "\n-------------------------\n"
-                                "      REFERENCE GENOM     \n"
-                                "-------------------------\n\n";
-
-static std::string fragmentLine = "\n-------------------------\n"
-                                "       FRAGMENTS     \n"
-                                "-------------------------\n\n";
 
 struct Sequence {
   public:
@@ -72,6 +35,51 @@ struct Sequence {
                 }
             }
 };
+
+std::vector<std::unique_ptr<Sequence>> referenceGenom;
+std::vector<std::unique_ptr<Sequence>> fragments;
+std::vector<std::tuple<unsigned int, unsigned int, bool>> reference_minimizers;
+brown::AlignmentType type;
+int match, gap, mismatch;
+unsigned int kmer_length = DEFAULT_KMER_LENGTH, window_length = DEFAULT_WINDOW_LENGTH;
+int thread_number;
+double frequency = DEFAULT_MINIMIZER_FREQUENCY;
+bool cigar_flag;
+
+
+static option long_options[] = {
+    {"help", no_argument, nullptr, 'h'},
+    {"version", no_argument, nullptr, 'v'},
+    {0, 0, 0, 0}
+};
+
+static std::string help = "brown_mapper \n"
+                            "-h or --help for help\n"
+                            "-v or --version for programs version\n\n"
+                            "Alignment arguments:\n"
+                            "-m   value for matching\n"
+                            "-n   value for mismatching\n"
+                            "-g   value for gap\n"
+                            "-a   alignment type (GLOBAL, SEMIGLOBAL or LOCAL)\n"
+                            "-c   cigar string enabled\n\n"
+                            "Minimizer arguments:\n"
+                            "-k   k-mer length (default: " + std::to_string(DEFAULT_KMER_LENGTH) + ")\n"
+                            "-w   window length (default: " + std::to_string(DEFAULT_WINDOW_LENGTH) + ")\n"
+                            "-f   top f frequent minimizers that will not be taken in account (default: " 
+                            + std::to_string(DEFAULT_MINIMIZER_FREQUENCY) + ")\n"
+                            "Program accepts two files as floating arguments.\n"
+                            "The first file needs to contain a reference genome in FASTA format.\n"
+                            "The second file needs to contain a set of fragments\n"
+                            "in either FASTA or FASTQ format.";
+
+static std::string genomLine = "\n-------------------------\n"
+                                "      REFERENCE GENOM     \n"
+                                "-------------------------\n\n";
+
+static std::string fragmentLine = "\n-------------------------\n"
+                                "       FRAGMENTS     \n"
+                                "-------------------------\n\n";
+
 
 bool compareFragmentLengths(std::unique_ptr<Sequence>& s1, std::unique_ptr<Sequence>& s2 ) {
     return s1->sequenceSequence.length() > s2->sequenceSequence.length();
@@ -106,83 +114,118 @@ void printsFragmentsStats(std::vector<std::unique_ptr<Sequence>>& fragments) {
 
 bool compareMinimizerOccurence(std::pair<unsigned int, unsigned int>& a, std::pair<unsigned int, unsigned int>& b) { 
     return a.second < b.second; 
-} 
+}
+
+bool comparePairOfMatches(std::pair<unsigned int, unsigned int>& a, std::pair<unsigned int, unsigned int>& b) {
+    if (a.second != b.second)
+        return a.second < b.second;
+
+    return a.first < b.first;
+}
 
 void cutOffTooFrequentMinimizers(std::vector<std::tuple<unsigned int, unsigned int, bool>>& minimizers) {
-     std::map<unsigned int, unsigned int> minimizers_map;
+    std::map<unsigned int, unsigned int> minimizers_map;
+    unsigned int singletons = 0;
     for(unsigned int i = 0; i < minimizers.size(); i++) {
         unsigned int currentMinimizer = std::get<0>(minimizers[i]);
-        if(minimizers_map.count(currentMinimizer) == 0) 
+        if(minimizers_map.count(currentMinimizer) == 0) {
             minimizers_map.insert(std::pair<unsigned int,unsigned int>(currentMinimizer, 1));
-        else 
+            singletons++;
+        } else { 
             minimizers_map[currentMinimizer]++;
+            singletons--;
+        }
     }
-
+    std::cerr << "Finished counting occurences of minimizers.." << std::endl;
     unsigned int fth_minimizer_index = minimizers_map.size() - 1 - frequency * minimizers_map.size();
     
     std::vector<std::pair<unsigned, unsigned int>> sorted_map_values(minimizers_map.begin(), minimizers_map.end());
     sort(sorted_map_values.begin(), sorted_map_values.end(), compareMinimizerOccurence);
-    sorted_map_values.erase(sorted_map_values.begin(), sorted_map_values.begin() + fth_minimizer_index);
 
-    /*std::multimap<unsigned int, unsigned int> minimizers_multimap;
-    for(std::map<unsigned int, unsigned int>::iterator itr = minimizers_map.begin(); itr != minimizers_map.end(); itr++) {
-        //if(itr->second == 1) reference_genom_singletons++;
-        minimizers_multimap.insert(std::pair<unsigned int, unsigned int>(itr->second, itr->first));
+    std::vector<unsigned int> unwanted_minimizers;
+    for (unsigned int i = fth_minimizer_index; i < sorted_map_values.size(); i++) {
+        unwanted_minimizers.push_back(sorted_map_values[i].first);
     }
-    unsigned int fth_minimizer_index = minimizers_multimap.size() - 1 - frequency * minimizers_multimap.size();
-    std::vector<unsigned int> too_frequent_minimizers;
-    for(unsigned int i = minimizers_multimap.size() - 1; i >= fth_minimizer_index; i--)
-        too_frequent_minimizers.emplace_back(minimizers_multimap.en);*/
+    std::cerr << "Found unwanted minimizers..."  << std::endl;
 
+
+    unsigned int original_size = minimizers.size();
+        /*unsigned int cuurent_size = minimizers.size();
+    for (unsigned int i = 0; i < cuurent_size; i++) {
+        if (std::find(unwanted_minimizers.begin(), unwanted_minimizers.end(), std::get<0>(minimizers[i])) != unwanted_minimizers.end()) {
+            minimizers.erase(minimizers.begin() + i);
+        }
+        for (unsigned int j = 0; j < unwanted_minimizers.size(); j++) {
+            if (std::get<0>(minimizers[i]) == unwanted_minimizers[j]) {
+                minimizers.erase(minimizers.begin() + i);
+                cuurent_size = minimizers.size();
+                break;
+            }
+        }
+    }*/
+
+    for (unsigned int i = 0; i < unwanted_minimizers.size(); i++) {
+        std::tuple<unsigned int, unsigned int, bool> fake_tuple = std::make_tuple(unwanted_minimizers[i], 0, false);
+        std::remove_if(minimizers.begin(), minimizers.end(), [fake_tuple] (std::tuple<unsigned int, unsigned int, bool> n) {
+                                                                return std::get<0>(fake_tuple) == std::get<0>(n);
+                                                                });
+    }
+    
+    
+    std::cerr << "Total number of minimizers in fragment: " << original_size << "." << std::endl;
+    std::cerr << "The fraction of singletone minimizers in fragments:  " << ((double) singletons) / original_size//krivi ispis
+                << "." << std::endl;
+    std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
+                << " frequent minimizers are not taken in account: " << sorted_map_values[fth_minimizer_index].second << std::endl << std::endl;
 
 }
 
+unsigned int GetCeilIndex(std::vector<std::pair<unsigned int, unsigned int>>& matches,
+                            std::vector<unsigned int>& T, unsigned int l, unsigned int r,
+                            std::pair<unsigned int, unsigned int>key) { 
+    while (r - l > 1) { 
+        int m = l + (r - l) / 2; 
+        if (matches[T[m]].first >= key.first) 
+            r = m; 
+        else
+            l = m; 
+    } 
+  
+    return r; 
+} 
+  
+unsigned int LongestIncreasingSubsequence(std::vector<std::pair<unsigned int, unsigned int>>& matches,
+                                    std::vector<unsigned int>& tail_indices,
+                                    std::vector<unsigned int>& prev_indices) { 
 
-int binarySearchIndices(std::vector<int> arr,int item, std::vector<int>& LISArr, int& lastIndex) {
-    //check the boundaries first
-    if (item < arr[LISArr[1]])
-        return 1;
-    if (item > arr[LISArr[lastIndex]])
-        return lastIndex+1;
-        
-    int first = 1;          //index
-    int last = lastIndex;   //index
-    int mid = (first+last)/2;
-    bool found = false;
-    while (!found && first<=last){
-        if (item<arr[LISArr[mid]])
-            last = mid-1;
-        else if(item>arr[LISArr[mid]])
-            first = mid+1;
-        else 
-            found = true;
-        mid = (first+last)/2;
-            
-    }
-    if (item>arr[LISArr[mid]])
-        mid = mid+1;
-    return mid;
-}
+    unsigned int len = 1; // it will always point to empty location 
 
-int leastIncreasingSequence(std::vector<int> arr) {
-    int i, ind;
-
-    if (arr.size()==0)
-        return 0;
-
-    std::vector<int> LISArr;
-    int lastIndex;
-    LISArr.resize(arr.size()+1,0);
-    LISArr[1] = 0;                 //arr[0] is subsequence of length 1
-    lastIndex = 1;                 //this is the index of the longet sequence found so far
-    for (i = 1; i < arr.size(); i++) {
-        ind = binarySearchIndices(arr,arr[i], LISArr, lastIndex);
-        LISArr[ind] = i;
-        if (ind>lastIndex)      //inserting at end
-            lastIndex = ind;
-    }
-    return lastIndex;           //this is LIS
-}
+    std::cerr << "Founding LIS..." << std::endl;
+    for (int i = 1; i < matches.size(); i++) { 
+        if (matches[i].first < matches[tail_indices[0]].first) { 
+            // new smallest value 
+            tail_indices[0] = i; 
+        } 
+        else if (matches[i].first > matches[tail_indices[len - 1]].first
+                && matches[i].second != matches[prev_indices[tail_indices[len - 1]]].second) { 
+            // arr[i] wants to extend largest subsequence 
+            prev_indices[i] = tail_indices[len - 1]; 
+            tail_indices[len++] = i; 
+        } 
+        else { 
+            // arr[i] wants to be a potential condidate of 
+            // future subsequence 
+            // It will replace ceil value in tailIndices 
+            unsigned int pos = GetCeilIndex(matches, tail_indices, -1, len - 1, matches[i]); 
+  
+            prev_indices[i] = tail_indices[pos - 1]; 
+            tail_indices[pos] = i; 
+        } 
+    } 
+  
+    std::cerr << "LIS compleated" << std::endl;
+    return len; 
+} 
 
 
 void mapping(Sequence fragment) {
@@ -193,8 +236,100 @@ void mapping(Sequence fragment) {
     
     cutOffTooFrequentMinimizers(fragment_minimizers);
     
+    std::vector<std::pair<unsigned int, unsigned int>> original_matches;
+    std::vector<std::pair<unsigned int, unsigned int>> revcompl_matches;
+
+    std::cerr << "Matching reference and fragment minimizers..." << std::endl;
     
-                                                                                                 
+    for (unsigned int i = 0; i < reference_minimizers.size(); i++) {
+        
+        for (unsigned int j = 0; j < fragment_minimizers.size(); j++) {
+            //std::cerr << "Uso u petlju " << i * fragment_minimizers.size() + j << " put\n";
+            if (std::get<0>(fragment_minimizers[j]) == std::get<0>(reference_minimizers[i])) {
+                original_matches.push_back(std::make_pair(std::get<1>(reference_minimizers[i]), std::get<1>(fragment_minimizers[j])));
+            }
+            
+            unsigned int reverse_complement = brown::getReversedComplKmerValue(std::get<0>(fragment_minimizers[j]), kmer_length);
+            if (reverse_complement == std::get<0>(reference_minimizers[i])) {
+                revcompl_matches.push_back(std::make_pair(std::get<1>(reference_minimizers[i]), 
+                                                        fragment.sequenceSequence.length() - std::get<1>(fragment_minimizers[j]) - kmer_length));
+            }
+        }
+
+    }
+
+    std::cerr << "Matching compleated" << std::endl;
+
+    std::sort(original_matches.begin(), original_matches.end(), comparePairOfMatches);
+    std::sort(revcompl_matches.begin(), revcompl_matches.end(), comparePairOfMatches);
+
+    std::cerr << "Sorting matches compleated" << std::endl;
+    std::vector<unsigned int> tail_indices_original(original_matches.size(), 0); 
+    std::vector<unsigned int> prev_indices_original(original_matches.size(), UINT32_MAX);
+
+    std::vector<unsigned int> tail_indices_revcompl(original_matches.size(), 0); // Initialized with 0 
+    std::vector<unsigned int> prev_indices_revcompl(original_matches.size(), UINT32_MAX); // initialized with -1 
+
+    unsigned int lis_length_original = LongestIncreasingSubsequence(original_matches, tail_indices_original, prev_indices_original);
+    unsigned int lis_length_revcompl = LongestIncreasingSubsequence(revcompl_matches, tail_indices_revcompl, prev_indices_revcompl);
+
+    std::vector<std::pair<unsigned int, unsigned int>> lis_vector;
+    char strand;
+    if (lis_length_original > lis_length_revcompl) {
+        strand = '+';
+        for (int i = tail_indices_original[lis_length_original - 1]; i >= 0; i = prev_indices_original[i]) {
+            lis_vector.push_back(original_matches[i]);
+        }
+    } else { 
+        strand = '-';
+        for (int i = tail_indices_revcompl[lis_length_revcompl - 1]; i >= 0; i = prev_indices_revcompl[i]) {
+            lis_vector.push_back(revcompl_matches[i]);
+        }
+    }
+
+    std::string* cigar = new std::string;
+    unsigned int* target_begin = new unsigned int;
+    int align_result = brown::Align(referenceGenom[0]->sequenceSequence.c_str() + lis_vector.back().first,
+                                    lis_vector.front().first - lis_vector.back().first,
+                                    fragment.sequenceSequence.c_str() + lis_vector.back().second,
+                                    lis_vector.front().second - lis_vector.back().second,
+                                    type, match, mismatch, gap, cigar, target_begin);
+
+    unsigned int block_length = 0, num_of_matches = 0;
+    for (unsigned int i = 0; i < (*cigar).length(); i++) {
+        if (isdigit((*cigar)[i])) {
+            std::string numbers;
+            
+            while (isdigit((*cigar)[i]))
+                numbers.append((std::to_string((*cigar)[i++])));
+
+            block_length += std::stoi(numbers);
+            if ((*cigar)[i] == 'M')
+                num_of_matches += std::stoi(numbers);
+        }
+    }
+
+    std::cout << referenceGenom[0]->sequenceName
+                << "\t" << referenceGenom[0]->sequenceSequence.length()
+                << "\t" << lis_vector.back().first
+                << "\t" << lis_vector.front().first
+                << "\t" << strand
+                << "\t" << fragment.sequenceName
+                << "\t" << fragment.sequenceSequence.length()
+                << "\t" << lis_vector.back().second
+                << "\t" << lis_vector.front().second
+                << "\t" << num_of_matches
+                << "\t" << block_length
+                << "\t" << 255 - (((double) num_of_matches) / block_length) * 255;
+
+    if (cigar_flag)
+        std::cout << "\t" << *cigar;
+    
+    std::cout << std::endl;
+
+    delete cigar;
+    delete target_begin;
+
 }
 
 
@@ -207,14 +342,12 @@ int main(int argc, char* argv[]) {
     bool type_flag;
 
     int c;
-    while ((c = getopt_long(argc, argv, "m:g:n:a:k:w:f:t:hv", long_options, 0)) != -1) {
+    while ((c = getopt_long(argc, argv, "m:g:n:a:k:w:f:t:chv", long_options, 0)) != -1) {
         switch (c){
             case 'h' :
                 std::cerr << help << std::endl;
-                return 0;
             case 'v' :
                 std::cerr << VERSION << std::endl;
-                return 0;
             case 'm':
                 match = atoi(optarg);
                 std::cerr << "Match is : " << optarg << std::endl;
@@ -251,6 +384,9 @@ int main(int argc, char* argv[]) {
                 thread_number = atoi(optarg);
                 std::cerr << "Number of threads: " << thread_number << std::endl;
                 break;
+            case 'c':
+                cigar_flag = true;
+                std::cerr << "Cigar flag raised" << std::endl;
             case '?' :
                 if (optopt == 'm' || optopt == 'n' || optopt == 'g')
                     std::cerr << "Option -" << optopt << " requires an argument." << std::endl;
@@ -269,7 +405,6 @@ int main(int argc, char* argv[]) {
         std::string file1 = argv[optind++];
         std::string file2 = argv[optind];
 
-        std::vector<std::unique_ptr<Sequence>> referenceGenom;
         if (file1.compare(file1.length() - 6, 6, ".fasta") == 0 ||
             file1.compare(file1.length() - 3, 3, ".fa") == 0 ||
             file1.compare(file1.length() - 4, 4, ".fna") == 0 ||
@@ -284,7 +419,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         
-        std::vector<std::unique_ptr<Sequence>> fragments;
         if (file2.compare(file2.length() - 6, 6, ".fastq") == 0 ||
             file2.compare(file2.length() - 3, 3, ".fq") == 0) {
                 auto p = bioparser::Parser<Sequence>::Create<bioparser::FastqParser>(file2);
@@ -344,81 +478,35 @@ int main(int argc, char* argv[]) {
                                     type, match, mismatch, gap, cigar, target_begin);        
         std::cerr << std::endl << "Alignment results for two randomly chossen genom fragments in second file: " << std::endl
                     << "    Alignment score: " << result << std::endl
-                    << "    Cigar string of alignment: " << *cigar << std::endl
                     << "    Begining of alignemnt is on position " << *target_begin << " of target genom." << std::endl;
-       
+
+        if (cigar_flag)
+            std::cerr << "    Cigar string of alignment: " << *cigar << std::endl;
         
-        std::map<unsigned int, unsigned int> reference_genom_minimizers_map;
-        for (unsigned int i = 0; i < referenceGenom.size(); i++) {
-            std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers = brown::Minimize(
-                                                                    referenceGenom[i]->sequenceSequence.c_str(), 
-                                                                    referenceGenom[i]->sequenceSequence.length()+1 , 
-                                                                    kmer_length, window_length);
-            for(unsigned int i = 0; i < minimizers.size(); i++) {
-                unsigned int currentMinimizer = std::get<0>(minimizers[i]);
-                if(reference_genom_minimizers_map.count(currentMinimizer) == 0) 
-                    reference_genom_minimizers_map.insert(std::pair<unsigned int,unsigned int>(currentMinimizer, 1));
-                else 
-                    reference_genom_minimizers_map[currentMinimizer]++;
-            }
+        delete cigar;
+        delete target_begin;
+
+        
+        reference_minimizers = brown::Minimize(referenceGenom[0]->sequenceSequence.c_str(), 
+                                                referenceGenom[0]->sequenceSequence.length() , 
+                                                kmer_length, window_length);
+        
+        cutOffTooFrequentMinimizers(reference_minimizers);
+
+        thread_pool::ThreadPool pool(thread_number);
+
+        std::vector<std::future<void>> futures;
+        for (int i = 0; i < fragments.size(); i++) {
+            //std::cerr << "Ide u pool " << i << std::endl;
+            futures.emplace_back(pool.Submit(mapping, std::cref(*(fragments[i]))));
         }
-
-        /* unsigned int reference_genom_singletons = 0;
-        std::multimap<unsigned int, unsigned int> reference_genom_multimap;
-        for(std::map<unsigned int, unsigned int>::iterator itr = reference_genom_minimizers_map.begin(); itr != reference_genom_minimizers_map.end(); itr++) {
-            if(itr->second == 1) reference_genom_singletons++;
-            reference_genom_multimap.insert(std::pair<unsigned int, unsigned int>(itr->second, itr->first));
-        }
-        
-        unsigned int reference_fth_minimizer_index = reference_genom_multimap.size() - 1 - frequency * reference_genom_multimap.size();
-        std::cerr << "Total number of distinct minimizers in reference genom: " << reference_genom_minimizers_map.size() << "." << std::endl;
-        std::cerr << "The fraction of singletone minimizers in reference genom:  " << ((double) reference_genom_singletons) / reference_genom_minimizers_map.size()
-                    << "." << std::endl;
-        std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
-                    << " frequent minimizers are not taken in account: " << reference_fth_minimizer_index << std::endl; */
-        
-
-        
-        /*std::map<unsigned int, unsigned int> fragments_minimizers;
-        for (unsigned int i = 0; i < fragments.size(); i++) {
-            std::vector<std::tuple<unsigned int, unsigned int, bool>> minimizers = brown::Minimize(
-                                                                    fragments[i]->sequenceSequence.c_str(), 
-                                                                    fragments[i]->sequenceSequence.length()+1 , 
-                                                                    kmer_length, window_length);
-            for(unsigned int i = 0 ;i < minimizers.size(); i++) {
-                unsigned int currentMinimizer = std::get<0>(minimizers[i]);
-                if(fragments_minimizers.count(currentMinimizer) == 0) 
-                    fragments_minimizers.insert(std::pair<unsigned int,unsigned int>(currentMinimizer, 1));
-                else 
-                    fragments_minimizers[currentMinimizer]++;
-            }
-        }
-
-        unsigned int fragments_singletons = 0;
-        std::multimap<unsigned int, unsigned int> fragments_multimap;
-        for(std::map<unsigned int, unsigned int>::iterator itr = fragments_minimizers.begin(); itr != fragments_minimizers.end(); itr++) {
-            if(itr->second == 1) fragments_singletons++;
-            fragments_multimap.insert(std::pair<unsigned int, unsigned int>(itr->second, itr->first));
-        }
-        
-        unsigned int fragments_fth_minimizer_index = fragments_multimap.size() - 1 - frequency * fragments_multimap.size();
-        std::cerr << "Total number of distinct minimizers in fragments: " << fragments_minimizers.size() << "." << std::endl;
-        std::cerr << "The fraction of singletone minimizers in fragments:  " << ((double) fragments_singletons) / fragments_minimizers.size()
-                    << "." << std::endl;
-        std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
-                    << " frequent minimizers are not taken in account: " << fragments_fth_minimizer_index << std::endl;*/
-
-    thread_pool::ThreadPool pool(thread_number);
-
-    std::vector<std::future<void>> futures;
-    for (int i = 0; i < fragments.size(); i++) {
-        futures.emplace_back(pool.Submit(mapping, std::cref(*(fragments[i]))));
-    }
-    for (auto& it : futures) {
+        for (auto& it : futures) {
           it.wait();
-    }
+        }
         
         
+    } else {
+        throw "Files missing\n";
     }
     
     

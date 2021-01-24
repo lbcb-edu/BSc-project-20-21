@@ -4,53 +4,34 @@
 #include <tuple>
 #include <cmath>
 
-unsigned int getKmerValue(char* kmer) {
+unsigned int getKmerValue(char* kmer, unsigned int kmer_len) {
     unsigned int value = 0;
-    int i = 0;
-    while(kmer[i + 1] != '\0') {
+    unsigned int i = 0;
+    while(i < kmer_len) {
         switch(kmer[i]) {
             case 'A':
-                value = (value + 0) << 2;
+                value = (value << 2) + 0;
                 break;
             case 'C':
-                value = (value + 1) << 2;
+                value = (value << 2) + 1;
                 break;
             case 'G':
-                value = (value + 2) << 2;
+                value = (value << 2) + 2;
                 break;
             case 'U':
-                value = (value + 3) << 2;
+                value = (value << 2) + 3;
                 break;
             case 'T':
-                value = (value + 3) << 2;
+                value = (value << 2) + 3;
                 break;
             default:
-                std::cerr << "Wrong base in sequence! "<< std::endl;
+                std::cerr << "Wrong base in sequence -> " << kmer[i] << " at " << i << std::endl;
                 std::exit(EXIT_FAILURE);
             }
+        //std::cerr << "Base " << kmer[i] << " at " << i << std::endl;
         i++;
     }
-    switch(kmer[i]) {
-        case 'A':
-            value += 0;
-            break;
-        case 'C':
-            value += 1;
-            break;
-        case 'G':
-            value += 2;
-            break;
-        case 'U':
-            value += 3;
-            break;
-        case 'T':
-            value += 3;
-            break;
-        default:
-            std::cerr << "Wrong base in sequence! "<< std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-    //std::cout << "ide radit stoi\n";
+    //sstd::cerr << "Base " << kmer[i] << " at " << i << std::endl << std::endl;
     return value;
 }
 
@@ -62,7 +43,7 @@ namespace brown {
         unsigned int n = ((1 << number_of_bits) - 1) ^ value; 
 
         unsigned int ans = 0;
-        for(int i = length * 2 - 2; i >= 0; i-= 2){
+        for(unsigned int i = length * 2 - 2; i >= 0; i-= 2){
             ans |= (n & 3) << i;
             n >>= 2;
         }
@@ -85,7 +66,7 @@ namespace brown {
         //stavljanje pocetnih minimizera
         for (unsigned int i = 0; i < window_len - 1; i++) {
             strncpy(kmer, sequence + i, kmer_len);
-            kmer_noreverse_value = getKmerValue(kmer);
+            kmer_noreverse_value = getKmerValue(kmer, kmer_len);
             //std::cout << "treba zavrsit stoi\n";
             //kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
         
@@ -109,7 +90,7 @@ namespace brown {
         for (unsigned int i = 0; i <= sequence_len - fraction_length; i++) {
             if (std::get<1>(minimizers.back()) >= i) {
                 strncpy(kmer, sequence + i + fraction_length - kmer_len, kmer_len);
-                kmer_noreverse_value = getKmerValue(kmer);
+                kmer_noreverse_value = getKmerValue(kmer, kmer_len);
                 //kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
                 
                 //if (kmer_noreverse_value < kmer_reverse_value) {
@@ -129,7 +110,7 @@ namespace brown {
                 
                 for (unsigned int j = 0; j <= fraction_length -  kmer_len; j++) {                    
                     strncpy(kmer, sequence + i + j, kmer_len);
-                    kmer_noreverse_value = getKmerValue(kmer);
+                    kmer_noreverse_value = getKmerValue(kmer, kmer_len);
                     //kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
                     
                     //if (kmer_noreverse_value < kmer_reverse_value) {
@@ -159,7 +140,7 @@ namespace brown {
                 
                 for (unsigned int j = i; j <= sequence_len - kmer_len; j++) {                    
                     strncpy(kmer, sequence + j, kmer_len);
-                    kmer_noreverse_value = getKmerValue(kmer);
+                    kmer_noreverse_value = getKmerValue(kmer, kmer_len);
                     //kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
                     
                     //if (kmer_noreverse_value < kmer_reverse_value) {
