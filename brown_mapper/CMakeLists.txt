@@ -9,7 +9,6 @@ add_subdirectory(include)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-target_include_directories("${PROJECT_NAME}" PUBLIC "${PROJECT_BINARY_DIR}")
 
 target_link_libraries(brown_mapper bioparser thread_pool brown_align brown_minim)
 

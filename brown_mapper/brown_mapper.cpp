@@ -13,7 +13,7 @@
 #include <set>
 #include <ctype.h>
 
-#define VERSION "v0.7"
+#define VERSION "v1.0"
 #define DEFAULT_KMER_LENGTH 15
 #define DEFAULT_WINDOW_LENGTH 5
 #define DEFAULT_MINIMIZER_FREQUENCY 0.001
@@ -347,8 +347,10 @@ int main(int argc, char* argv[]) {
         switch (c){
             case 'h' :
                 std::cerr << help << std::endl;
+                return 0;
             case 'v' :
                 std::cerr << VERSION << std::endl;
+                return 0;
             case 'm':
                 match = atoi(optarg);
                 std::cerr << "Match is : " << optarg << std::endl;
