@@ -36,16 +36,13 @@ unsigned int getKmerValue(char* kmer, unsigned int kmer_len) {
 namespace brown {
 
     unsigned int getReversedComplKmerValue(unsigned int value, unsigned int length) {
-        int number_of_bits = floor(log2(value)) + 1; 
-
-        unsigned int n = ((1 << number_of_bits) - 1) ^ value; 
-
-        unsigned int ans = 0;
-        for(unsigned int i = length * 2 - 2; i >= 0; i-= 2){
-            ans |= (n & 3) << i;
-            n >>= 2;
+        unsigned int ans = 0;;
+        for(int i = length * 2 - 2; i >= 0; i-= 2){
+            ans |= (value & 3) << i;
+            value >>= 2;
         }
-        return ans;
+        unsigned int n = ((1 << (length * 2)) - 1) ^ ans;
+        return n;
     }
 
     std::vector<std::tuple<unsigned int, unsigned int, bool>> Minimize(
