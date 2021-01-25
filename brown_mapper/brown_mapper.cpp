@@ -124,7 +124,7 @@ bool comparePairOfMatches(std::pair<unsigned int, unsigned int>& a, std::pair<un
 }
 
 void cutOffTooFrequentMinimizers(std::vector<std::tuple<unsigned int, unsigned int, bool>>& minimizers,
-                                std::string name) {
+                                std::string name, bool ref_genom) {
     std::map<unsigned int, unsigned int> minimizers_map;
     unsigned int singletons = 0;
     for(unsigned int i = 0; i < minimizers.size(); i++) {
@@ -138,17 +138,25 @@ void cutOffTooFrequentMinimizers(std::vector<std::tuple<unsigned int, unsigned i
                 singletons--;
         }
     }
-    std::cerr << "Finished counting occurences of minimizers.." << std::endl;
+    std::cerr << "Finished counting occurences of minimizers.." << std::endl << std::endl;
     unsigned int fth_minimizer_index = minimizers_map.size() - 1 - frequency * minimizers_map.size();
     
     std::vector<std::pair<unsigned, unsigned int>> sorted_map_values(minimizers_map.begin(), minimizers_map.end());
     sort(sorted_map_values.begin(), sorted_map_values.end(), compareMinimizerOccurence);
 
+    std::string seq = ref_genom == true? "reference genom" : "fragment"; 
+    std::cerr << "Total number of minimizers in " << seq << " " << name << ": " << minimizers.size() << "." << std::endl;
+    std::cerr << "The fraction of singletone minimizers in " << seq << ":  " << ((double) singletons) / minimizers.size()
+                << "." << std::endl;
+    std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
+                << " frequent minimizers are not taken in account: " << sorted_map_values[fth_minimizer_index].second << std::endl << std::endl;
+    
     std::vector<unsigned int> unwanted_minimizers;
     for (unsigned int i = fth_minimizer_index; i < sorted_map_values.size(); i++) {
         unwanted_minimizers.push_back(sorted_map_values[i].first);
     }
-    std::cerr << "Found unwanted minimizers..."  << std::endl;
+    std::cerr << "Found unwanted minimizers...\n"
+                << "Deleting them..." << std::endl;
 
 
     unsigned int original_size = minimizers.size();
@@ -171,13 +179,6 @@ void cutOffTooFrequentMinimizers(std::vector<std::tuple<unsigned int, unsigned i
                                                                 return std::get<0>(fake_tuple) == std::get<0>(n);
                                                                 });
     }*/
-    
-    
-    std::cerr << "Total number of minimizers in fragment " << name << ": " << original_size << "." << std::endl;
-    std::cerr << "The fraction of singletone minimizers in fragment:  " << ((double) singletons) / original_size
-                << "." << std::endl;
-    std::cerr << "The number of occurrences of the most frequent minimizer when the top " << frequency 
-                << " frequent minimizers are not taken in account: " << sorted_map_values[fth_minimizer_index].second << std::endl << std::endl;
 
 }
 
@@ -186,10 +187,19 @@ unsigned int GetCeilIndex(std::vector<std::pair<unsigned int, unsigned int>>& ma
                             std::pair<unsigned int, unsigned int>key) { 
     while (r - l > 1) { 
         int m = l + (r - l) / 2; 
+        if (matches[T[m]].second > key.second) {
+            r = m;
+            continue;
+        } 
+        else if (matches[T[m]].second < key.second) {
+            l = m;
+            continue;
+        }
+
         if (matches[T[m]].first >= key.first) 
             r = m; 
         else
-            l = m; 
+            l = m;  
     } 
   
     return r; 
@@ -199,26 +209,20 @@ unsigned int LongestIncreasingSubsequence(std::vector<std::pair<unsigned int, un
                                     std::vector<unsigned int>& tail_indices,
                                     std::vector<unsigned int>& prev_indices) { 
 
-    unsigned int len = 1; // it will always point to empty location 
+    unsigned int len = 1; 
 
     std::cerr << "Founding LIS..." << std::endl;
     for (int i = 1; i < matches.size(); i++) { 
         if (matches[i].first < matches[tail_indices[0]].first) { 
-            // new smallest value 
             tail_indices[0] = i; 
         } 
         else if (matches[i].first > matches[tail_indices[len - 1]].first
                 && matches[i].second != matches[prev_indices[tail_indices[len - 1]]].second) { 
-            // arr[i] wants to extend largest subsequence 
             prev_indices[i] = tail_indices[len - 1]; 
             tail_indices[len++] = i; 
         } 
         else { 
-            // arr[i] wants to be a potential condidate of 
-            // future subsequence 
-            // It will replace ceil value in tailIndices 
             unsigned int pos = GetCeilIndex(matches, tail_indices, -1, len - 1, matches[i]); 
-  
             prev_indices[i] = tail_indices[pos - 1]; 
             tail_indices[pos] = i; 
         } 
@@ -235,7 +239,7 @@ void mapping(Sequence fragment) {
                                                                                                     kmer_length,
                                                                                                     window_length);
     
-    cutOffTooFrequentMinimizers(fragment_minimizers, fragment.sequenceName);
+    cutOffTooFrequentMinimizers(fragment_minimizers, fragment.sequenceName, false);
     
     std::vector<std::pair<unsigned int, unsigned int>> original_matches;
     std::vector<std::pair<unsigned int, unsigned int>> revcompl_matches;
@@ -343,7 +347,7 @@ int main(int argc, char* argv[]) {
     bool type_flag;
 
     int c;
-    while ((c = getopt_long(argc, argv, "m:g:n:a:k:w:f:t:chv", long_options, 0)) != -1) {
+    while ((c = getopt_long(argc, argv, "m:g:n:a:k:w:f:t:hvc", long_options, 0)) != -1) {
         switch (c){
             case 'h' :
                 std::cerr << help << std::endl;
@@ -390,6 +394,7 @@ int main(int argc, char* argv[]) {
             case 'c':
                 cigar_flag = true;
                 std::cerr << "Cigar flag raised" << std::endl;
+                break;
             case '?' :
                 if (optopt == 'm' || optopt == 'n' || optopt == 'g')
                     std::cerr << "Option -" << optopt << " requires an argument." << std::endl;
@@ -402,9 +407,7 @@ int main(int argc, char* argv[]) {
     }
 
 
-    //std:: cout << "evo me 2" << std::endl;
     if (optind < argc) {
-        //std::cout << "ide pravit stringove"<< std::endl;
         std::string file1 = argv[optind++];
         std::string file2 = argv[optind];
 
@@ -416,7 +419,6 @@ int main(int argc, char* argv[]) {
             file1.compare(file1.length() - 4, 4, ".frn") == 0) {
                 auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(file1);
                 referenceGenom = p->Parse(-1);    
-                //std::cout << "uspjesno je sredio prvi file" << std::endl;            
         } else {
             std::cerr << "First file needs to be in FASTA format!" << std::endl;
             return 1;
@@ -441,14 +443,12 @@ int main(int argc, char* argv[]) {
             file2.compare(file2.length() - 4, 4, ".frn") == 0) {
                 auto p = bioparser::Parser<Sequence>::Create<bioparser::FastaParser>(argv[optind]);
                 fragments = p->Parse(-1);
-                //std::cout << "uspjedno je sredio drugi file" << std::endl;
         } else {
             std::cerr << "Second file needs to be in FASTA or FASTQ format!" << std::endl;
             return 1;
         }
 
         std::cerr << genomLine;
-        //std::cout << "velicina vektora referentnog genoma: " << referenceGenom.size() << std::endl;
         std::cerr << "Reference genom name: " << referenceGenom.front()->sequenceName << std::endl;
         std::cerr << "Reference genom length: "<< referenceGenom.front()->sequenceSequence.length() << std::endl;
         
@@ -464,7 +464,6 @@ int main(int argc, char* argv[]) {
         unsigned int* target_begin = new unsigned int();
         srand(time(0));
         int fragment_postion1, fragment_postion2;
-        //std::cout << "ide birat fragmente\n";
         do {
             fragment_postion1 = rand() % fragments.size();
         } while (fragments[fragment_postion1]->sequenceSequence.length() < 5000);
@@ -473,7 +472,6 @@ int main(int argc, char* argv[]) {
             fragment_postion2 = rand() % fragments.size();
         } while (fragments[fragment_postion2]->sequenceSequence.length() < 5000);
 
-        //std::cout << "odabro je fragmente" << std::endl;
         int result = brown::Align(fragments[fragment_postion1]->sequenceSequence.c_str(), 
                                     fragments[fragment_postion1]->sequenceSequence.length(),
                                     fragments[fragment_postion2]->sequenceSequence.c_str(), 
@@ -494,13 +492,12 @@ int main(int argc, char* argv[]) {
                                                 referenceGenom[0]->sequenceSequence.length() , 
                                                 kmer_length, window_length);
         
-        cutOffTooFrequentMinimizers(reference_minimizers, referenceGenom[0]->sequenceName);
+        cutOffTooFrequentMinimizers(reference_minimizers, referenceGenom[0]->sequenceName, true);
 
         thread_pool::ThreadPool pool(thread_number);
 
         std::vector<std::future<void>> futures;
         for (int i = 0; i < fragments.size(); i++) {
-            //std::cerr << "Ide u pool " << i << std::endl;
             futures.emplace_back(pool.Submit(mapping, std::cref(*(fragments[i]))));
         }
         for (auto& it : futures) {
@@ -511,9 +508,6 @@ int main(int argc, char* argv[]) {
     } else {
         throw "Files missing\n";
     }
-    
-    
-
 
     return 0;
 }

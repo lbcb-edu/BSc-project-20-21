@@ -13,11 +13,9 @@ namespace brown {
         int gap,
         std::string* cigar = nullptr,
         unsigned int* target_begin = nullptr) {
-            //std::cout << "ide radit align\n";
             
             int resultRow = 0;
             int resultColumn = 0;
-            //std::cout << "ide radit align\n";
 
             int **m = new int*[query_len + 1];
             for (unsigned int i = 0; i < query_len + 1; i++)
@@ -27,7 +25,6 @@ namespace brown {
             for (unsigned int i = 0; i < query_len + 1; i++)
                 direction[i] = new AlignmentDirection[target_len + 1];
             
-            //std::cout << "ide radit align\n";
             if(type == GLOBAL) {
                 m[0][0]=0;
                 direction[0][0] = NONE;
@@ -162,9 +159,7 @@ namespace brown {
             if (cigar != nullptr || target_begin !=nullptr) {
                 
                     while(direction[resultRow][resultColumn] != NONE) {
-                    /*while((type==GLOBAL && !(resultRow == 0 && resultColumn == 0)) || 
-                        (type==SEMIGLOBAL && resultRow != 0 && resultColumn != 0) ||
-                        (type==LOCAL && m[resultRow][resultColumn] != 0)) {*/
+                    
                         switch (direction[resultRow][resultColumn]) {
                             case MATCH:
                                 cigarBeta += "M";
@@ -189,39 +184,10 @@ namespace brown {
                                 exit(EXIT_FAILURE);
                         }
                         
-                        
-                        /*if(!(resultRow == 0 || resultColumn == 0)) { 
-                            //if (type == LOCAL) targetLocal = resultColumn;
-                            if (m[resultRow-1][resultColumn-1] + match == m[resultRow][resultColumn] && query[resultRow] == target[resultColumn]) {
-                                cigarBeta += "M";
-                                resultColumn--;
-                                resultRow--;
-                                continue;
-                            }
-                            else if (m[resultRow-1][resultColumn-1] + mismatch == m[resultRow][resultColumn]) {
-                                cigarBeta += "X";
-                                resultColumn--;
-                                resultRow--;
-                                continue;
-                            }
-                        }
-
-                        if (resultRow != 0 && m[resultRow-1][resultColumn] + gap == m[resultRow][resultColumn]) {
-                            cigarBeta += "D";
-                            resultRow--;
-                            continue;
-                        }
-
-                        if (resultColumn != 0 &&  m[resultRow][resultColumn-1] + gap == m[resultRow][resultColumn]) {
-                            //if (type == LOCAL) targetLocal = resultColumn;
-                            cigarBeta += "I";
-                            resultColumn--;
-                        }*/
-                        
                     }
             }
 
-            if(target_begin != nullptr) { //o ovome jos malo razmislit za semiglobal
+            if(target_begin != nullptr) { 
                     if (type == GLOBAL) *target_begin = 0;
                     else if (type == SEMIGLOBAL) *target_begin = resultColumn;
                     else *target_begin = resultColumn;
@@ -229,7 +195,6 @@ namespace brown {
 
             if(cigar != nullptr) {
                 *cigar = "";
-                //cigar->append(cigarBeta.substr(0,1));
                 char current = cigarBeta.at(0);
                 int counter = 0;
                 while(!cigarBeta.empty()) {
@@ -258,7 +223,7 @@ namespace brown {
 
             delete[] direction;
             delete[] m;
-            //std::cout << "obavio je cijeli align" << std::endl;
+
             return result;
     }
     

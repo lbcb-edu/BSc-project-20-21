@@ -28,10 +28,8 @@ unsigned int getKmerValue(char* kmer, unsigned int kmer_len) {
                 std::cerr << "Wrong base in sequence -> " << kmer[i] << " at " << i << std::endl;
                 std::exit(EXIT_FAILURE);
             }
-        //std::cerr << "Base " << kmer[i] << " at " << i << std::endl;
         i++;
     }
-    //sstd::cerr << "Base " << kmer[i] << " at " << i << std::endl << std::endl;
     return value;
 }
 
@@ -62,12 +60,10 @@ namespace brown {
         char* kmer = (char*) malloc(kmer_len);
         unsigned int kmer_noreverse_value, kmer_reverse_value, kmer_value;
 
-        //std::cout << "krece radit minimizere\n";
         //stavljanje pocetnih minimizera
         for (unsigned int i = 0; i < window_len - 1; i++) {
             strncpy(kmer, sequence + i, kmer_len);
             kmer_noreverse_value = getKmerValue(kmer, kmer_len);
-            //std::cout << "treba zavrsit stoi\n";
             //kmer_reverse_value = getReversedKmerValue(kmer_noreverse_value);
         
             //if (kmer_noreverse_value < kmer_reverse_value) {
