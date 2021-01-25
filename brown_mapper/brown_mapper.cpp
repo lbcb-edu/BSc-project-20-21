@@ -42,7 +42,7 @@ std::vector<std::tuple<unsigned int, unsigned int, bool>> reference_minimizers;
 brown::AlignmentType type;
 int match, gap, mismatch;
 unsigned int kmer_length = DEFAULT_KMER_LENGTH, window_length = DEFAULT_WINDOW_LENGTH;
-int thread_number;
+int thread_number = 1;
 double frequency = DEFAULT_MINIMIZER_FREQUENCY;
 bool cigar_flag;
 
