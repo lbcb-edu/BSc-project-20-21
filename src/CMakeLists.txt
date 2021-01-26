@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2.2)
 
 # set the project name and version
-project(pink_mapper VERSION 0.4.0)
+project(pink_mapper VERSION 0.4.1)
 
 configure_file(Pink_mapperConfig.h.in Pink_mapperConfig.h)
 
@@ -40,7 +40,7 @@ target_link_libraries(${PROJECT_NAME} ZLIB::ZLIB)
 endif()
 
 
-option(mapper_build_tests "Build mapper unit tests" OFF)
+option(mapper_build_tests "Build mapper unit tests" ON)
 
 if (mapper_build_tests)
   find_package(GTest REQUIRED)

@@ -43,7 +43,7 @@ pair<unsigned int,unsigned int> LIS(const vector<tuple<unsigned int, unsigned in
 	int k = M[L];
 	for(int i=L-1;i>-1;i--){
 		if(i<(L-1)){
-			if((get<1>(S[0])-get<1>(matches[k]))>(2*flength)){
+			if((get<1>(S[0])-get<1>(matches[k]))>(flength)){
 				matrix.push_back(S);
 				S.clear();
 				S.shrink_to_fit();
@@ -143,7 +143,8 @@ int main(int argc, char **argv){
 
 		//find selected read k-mers
 		#pragma omp parallel for num_threads(tnum)
-		for(int glava=0;glava<12;glava++){
+		for(int glava=0;glava<(ss.size());glava++){
+			//if(ss[glava] -> data.length() >= 25000) continue;
 			vector<tuple<unsigned int,unsigned int, bool>> frag_kmers;
 			set<tuple<unsigned int, bool>>::iterator ite;
 			set<tuple<unsigned int, bool>> frag_set;

@@ -136,27 +136,31 @@ int Align(const char* query, unsigned int query_len,
         }
         reverse(tmp.begin(), tmp.end());
 
-        string result = "";
-        char c = tmp.at(0);
-        int n = 1;
-        for(int i = 1; i < tmp.size(); i++){
-            if(tmp.at(i) == c){
-                n++;
-            }else{
-                result = result + to_string(n) + c;
-                n = 1;
-                c = tmp.at(i);
+        //cigar = new string;
+        if(cigar!=nullptr){
+            *cigar = "";
+            char c = tmp.at(0);
+            int n = 1;
+            for(int i = 1; i < tmp.size(); i++){
+                if(tmp.at(i) == c){
+                    n++;
+                }else{
+                    *cigar = *cigar + to_string(n) + c;
+                    n = 1;
+                    c = tmp.at(i);
+                }
             }
+            *cigar = *cigar + to_string(n) + c;
+            target_begin = new unsigned int;
+            *target_begin = j_scoreIndex;
+            //cigar = &result;
+            
+            for (int i = 0; i <= query_len; i++) {
+                delete[] V[i];
+            }
+            delete[] V;
         }
-        result = result + to_string(n) + c;
-        target_begin = &j_scoreIndex;
-        cigar = &result;
-        
-        for (int i = 0; i <= query_len; i++) {
-            delete[] V[i];
-        }
-        delete[] V;
-        cout << *cigar << "\n";
+        //cout << *cigar << "\n";
         return alignmentScore;
 };
 } //namespace pink

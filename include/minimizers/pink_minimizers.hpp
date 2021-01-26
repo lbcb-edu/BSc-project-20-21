@@ -17,6 +17,11 @@ int nucleotide_value(char c, bool reverse){
     else if(c == 'A') return reverse ? 2 : 1;
     else if(c == 'T') return reverse ? 1 : 2;
     else if(c == 'G') return reverse ? 0 : 3;
+    else {
+        cerr << "Unrecognized nucleotide base: " << c
+            << "\n";
+        exit(1);
+    }
 }
 
 tuple<unsigned int, unsigned int, bool> findMinimizers(unsigned long int orig, unsigned long int revComp, unsigned int sequence_len, 
