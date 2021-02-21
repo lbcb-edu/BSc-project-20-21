@@ -3,6 +3,7 @@
 #include <getopt.h>
 
 #include <algorithm>
+#include <cmath>
 #include <ios>
 #include <iostream>
 #include <map>
@@ -15,6 +16,8 @@
 #include "blue_minimizers.hpp"
 #include "matcher.hpp"
 #include "thread_pool/thread_pool.hpp"
+
+#define EPS 500
 
 static constexpr option options[] = {
     {"algorithm", required_argument, nullptr, 'a'},
@@ -232,8 +235,8 @@ Subsequence LIS(std::vector<Match>& matches, bool type) {
   // stores 'backpointers' to reconstruct LIS
 
   auto comp = [&matches, &type](auto const& i, auto const& j) {
-    return type ? matches[i].ref_pos > matches[j].ref_pos   // different strand
-                : matches[i].ref_pos < matches[j].ref_pos;  // same strand
+    return type ? matches[i].ref_pos > matches[j].ref_pos   // decreasing
+                : matches[i].ref_pos < matches[j].ref_pos;  // increasing
   };
 
   for (unsigned i = 0; i < matches.size(); i++) {
@@ -253,55 +256,29 @@ Subsequence LIS(std::vector<Match>& matches, bool type) {
   return {beg_pos, tail.back(), tail.size(), type};
 }
 
-// maps fragment to reference, prints mapping in PAF
-void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
+void PAF(std::vector<Match> cluster, int type, MinimizerIndex reference_index,
+         std::unique_ptr<Sequence>& reference,
          std::unique_ptr<Sequence>& fragment, int8_t kmer_len,
          int8_t window_len, blue::AlignmentType alignment_type, int match,
          int mismatch, int gap, bool cigar_arg) {
-  std::vector<blue::Kmer> frag_minimizers = blue::Minimize(
-      fragment->data_.c_str(), fragment->data_.size(), kmer_len, window_len);
-
-  // matches[0] - same strand, matches[1] - different strand
-  std::vector<std::vector<Match>> matches(2);
-
-  for (auto [frag_val, frag_pos, frag_origin] : frag_minimizers) {
-    if (reference_index.count(frag_val)) {
-      for (auto [ref_pos, ref_origin] : reference_index[frag_val])
-        matches[frag_origin ^ ref_origin].push_back({frag_pos, ref_pos});
-    }
-  }
+  if (cluster.size() < 4) return;
 
   auto comp = [](Match const& a, Match const& b) {
     return a.frag_pos < b.frag_pos;
   };
 
-  Subsequence best = {0, 0, 0, -1};
-  for (unsigned i = 0; i < matches.size(); i++) {
-    if (matches[i].size() == 0) continue;
+  sort(cluster.begin(), cluster.end(), comp);
 
-    sort(matches[i].begin(), matches[i].end(), comp);
-    Subsequence s = LIS(matches[i], i);
-    if (s.size > best.size) best = s;
-  }
+  Subsequence s = LIS(cluster, 0);
+  if (s.size < 4) return;
 
-  int type = best.type;  // 0 - same strand, 1 - different
-  if (type == -1) return;
+  auto query_start = cluster[s.beg].frag_pos - kmer_len;
+  auto target_start = cluster[s.beg].ref_pos - kmer_len;
+  auto query_end = cluster[s.end].frag_pos + kmer_len;
+  auto target_end = cluster[s.end].ref_pos + kmer_len;
 
-  // raw indexes of the region to be aligned
-  auto query_start = matches[type][best.beg].frag_pos;
-  auto target_start = matches[type][best.beg].ref_pos;
-  auto query_end = matches[type][best.end].frag_pos;
-  auto target_end = matches[type][best.end].ref_pos;
-
-  // lengths used for alignment
-  auto query_align_len = query_end + kmer_len - query_start;
-  auto target_align_len = std::min(
-      10000u, (target_end + kmer_len - target_start) * (type ? -1 : 1));
-
-  // apply orientation to indexes
-  target_end = (type ? target_start : target_end + kmer_len);
-  target_start = (type ? target_start - target_align_len : target_start);
-  query_end += kmer_len;
+  auto query_align_len = query_end - query_start;
+  auto target_align_len = target_end - target_start;
 
   // clang-format off
   std::string paf = fragment->name_ + '\t'
@@ -356,7 +333,7 @@ void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
 
     paf += std::to_string(match_count) + '\t' + std::to_string(total) + '\t';
   } else {  // approximate col 10 and 11
-    paf += std::to_string(query_align_len) + '\t' +
+    paf += std::to_string(std::min(query_align_len, target_align_len)) + '\t' +
            std::to_string(std::max(query_align_len, target_align_len)) + '\t';
   }
 
@@ -366,6 +343,70 @@ void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
   if (cigar_arg) paf += "cg:Z:" + cigar;
 
   std::cout << paf << std::endl;
+}
+
+bool Close(Match const& a, Match const& b, int type) {
+  if (type == 0) {  // same strand
+    return std::abs(((int)a.frag_pos - (int)a.ref_pos) -
+                    ((int)b.frag_pos - (int)b.ref_pos)) < EPS;
+  }
+  // diff strand
+  return std::abs((int)(a.frag_pos + a.ref_pos) -
+                  (int)(b.frag_pos + b.ref_pos)) < EPS;
+}
+
+// maps fragment to reference, prints mapping in PAF
+void Map(MinimizerIndex reference_index, std::unique_ptr<Sequence>& reference,
+         std::unique_ptr<Sequence>& fragment, int8_t kmer_len,
+         int8_t window_len, blue::AlignmentType alignment_type, int match,
+         int mismatch, int gap, bool cigar_arg) {
+  std::vector<blue::Kmer> frag_minimizers = blue::Minimize(
+      fragment->data_.c_str(), fragment->data_.size(), kmer_len, window_len);
+
+  // matches[0] - same strand, matches[1] - different strand
+  std::vector<std::vector<Match>> matches(2);
+
+  for (auto [frag_val, frag_pos, frag_origin] : frag_minimizers) {
+    if (reference_index.count(frag_val)) {
+      for (auto [ref_pos, ref_origin] : reference_index[frag_val])
+        matches[frag_origin ^ ref_origin].push_back({frag_pos, ref_pos});
+    }
+  }
+
+  // CLUSTERING
+
+  // same strand, compare by q-t
+  auto ss_comp = [](Match const& a, Match const& b) {
+    return ((int)a.frag_pos - (int)a.ref_pos) <
+           ((int)b.frag_pos - (int)b.ref_pos);
+  };
+
+  // diff strand, compare by q+t
+  auto ds_comp = [](Match const& a, Match const& b) {
+    return (a.frag_pos + a.ref_pos) < (b.frag_pos + b.ref_pos);
+  };
+
+  sort(matches[0].begin(), matches[0].end(), ss_comp);  // same strand q-t
+  sort(matches[1].begin(), matches[1].end(), ds_comp);  // diff strand q+t
+
+  std::vector<Match> cluster;
+  for (int i = 0; i < matches.size(); i++) {
+    if (matches[i].size() == 0) continue;
+    int start_j = 0;
+    cluster.clear();
+    cluster.push_back(matches[i][start_j]);
+
+    for (int j = 1; j < matches[i].size(); j++) {
+      if (Close(matches[i][j], matches[i][j - 1], i)) {
+        cluster.push_back(matches[i][j]);
+      } else {
+        PAF(cluster, i, reference_index, reference, fragment, kmer_len,
+            window_len, alignment_type, match, mismatch, gap, cigar_arg);
+        start_j = j;
+        cluster.clear();
+      }
+    }
+  }
 }
 
 int main(int argc, char* argv[]) {
